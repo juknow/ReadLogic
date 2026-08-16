@@ -43,6 +43,7 @@
   --layout-content-max: 70rem;
   --layout-text-max: 45rem;
   --layout-gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --layout-header-height: 4.5rem;
 
   --duration-fast: 160ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
