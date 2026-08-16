@@ -4,7 +4,7 @@
     calc(100% - (var(--layout-gutter) + var(--layout-gutter))),
     var(--layout-content-max)
   );
-  min-height: 100svh;
+  min-height: calc(100svh - var(--layout-header-height));
   margin-inline: auto;
   place-items: center;
   padding-block: var(--space-16);

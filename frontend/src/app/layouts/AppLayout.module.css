@@ -1,6 +1,9 @@
-.layout,
-.main {
+.layout {
   min-height: 100svh;
+}
+
+.main {
+  min-height: calc(100svh - var(--layout-header-height));
 }
 
 .skipLink {
