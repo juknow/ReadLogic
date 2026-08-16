@@ -1,0 +1,18 @@
+.page {
+  display: grid;
+  width: min(
+    calc(100% - (var(--layout-gutter) + var(--layout-gutter))),
+    var(--layout-content-max)
+  );
+  min-height: 100svh;
+  margin-inline: auto;
+  place-items: center;
+  padding-block: var(--space-16);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  letter-spacing: -0.05em;
+}
