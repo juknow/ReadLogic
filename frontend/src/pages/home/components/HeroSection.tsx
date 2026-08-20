@@ -21,7 +21,7 @@ export function HeroSection() {
           ReadLogic은 읽은 내용을 구조화하고, 짧게 요약하고, 직접 말로
           설명하며 이해를 단단하게 만드는 독서 훈련입니다.
         </p>
-        <a className={styles.primaryAction} href="#training-rhythm">
+        <a className={styles.primaryAction} href="#training-flow">
           훈련 방식 살펴보기
           <span aria-hidden="true">↓</span>
         </a>
@@ -29,7 +29,6 @@ export function HeroSection() {
 
       <div
         className={styles.rhythm}
-        id="training-rhythm"
         aria-label="20분 읽기, 5분 구조화, 5분 글 요약, 3분 말하기"
       >
         <p className={styles.rhythmLabel}>한 번의 훈련 · 33분</p>
