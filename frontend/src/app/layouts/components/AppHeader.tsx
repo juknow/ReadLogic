@@ -4,8 +4,6 @@ import { appPaths } from '@/app/router/paths'
 
 import styles from './AppHeader.module.css'
 
-const homeOverviewPath = `${appPaths.home}#home-title`
-
 export function AppHeader() {
   return (
     <header className={styles.header}>
@@ -18,8 +16,8 @@ export function AppHeader() {
           ReadLogic
         </Link>
         <nav aria-label="주요 탐색">
-          <Link className={styles.primaryAction} to={homeOverviewPath}>
-            훈련 알아보기
+          <Link className={styles.primaryAction} to={appPaths.newSession}>
+            새 독서 세션
           </Link>
         </nav>
       </div>
