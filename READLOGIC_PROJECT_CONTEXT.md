@@ -115,7 +115,7 @@ Retry
 
 #### 사용자 행동
 
-- 읽을 책 또는 페이지 등록
+- 등록된 책에서 읽을 페이지 선택
 - 독서 시작
 - 20분 동안 집중해서 읽기
 
@@ -361,13 +361,17 @@ Retry는 단순 반복이 아니라 **명확한 개선 과제가 있는 재시�
 ```text
 Home
 ↓
-새 독서 세션 시작
+새 책 등록
 ↓
-책/페이지 등록
+페이지별 이미지 등록
 ↓
-책 페이지 촬영 또는 이미지 업로드
+OCR / Vision을 통한 페이지별 텍스트 추출
 ↓
-OCR / Vision을 통한 텍스트 추출
+책 원문에 페이지 단위로 저장
+↓
+등록된 책에서 새 독서 세션 시작
+↓
+읽을 페이지 선택
 ↓
 20분 독서
 ↓
@@ -399,16 +403,17 @@ Retry Mission
 ## MVP 핵심 기능
 
 1. Home 화면
-2. 새로운 독서 세션 시작
-3. 책 이미지 업로드
-4. 이미지 텍스트 추출
-5. 20분 독서 타이머
-6. 5분 구조화 입력
-7. 5분 글 요약 입력
-8. 3분 음성 녹음
-9. 음성 전사
-10. AI 피드백
-11. Retry
+2. 새 책 등록
+3. 책의 페이지별 이미지 업로드
+4. 페이지별 이미지 텍스트 추출 및 저장
+5. 등록된 책에서 새로운 독서 세션 시작
+6. 20분 독서 타이머
+7. 5분 구조화 입력
+8. 5분 글 요약 입력
+9. 3분 음성 녹음
+10. 음성 전사
+11. AI 피드백
+12. Retry
 
 ---
 
@@ -441,8 +446,14 @@ Retry Mission
 /
 Home
 
-/session/new
-새로운 독서 세션
+/books/new
+새 책 등록 및 페이지 이미지 업로드
+
+/books/:bookId
+책 상세 / 페이지별 원문
+
+/books/:bookId/session/new
+등록된 책에서 새로운 독서 세션
 
 /session/:id/read
 20분 독서
@@ -700,9 +711,10 @@ ReadLogic은 화려한 AI 서비스보다 **집중할 수 있는 지적 생산�
 
 초기 백엔드는 향후 다음 기능을 담당한다.
 
+- 책 생성 및 조회
+- 책 페이지별 이미지 저장
+- 페이지별 OCR/Vision 처리 및 텍스트 저장
 - 세션 생성
-- 책 이미지 처리
-- OCR/Vision 처리
 - 음성 파일 처리
 - STT
 - AI 평가
@@ -720,7 +732,7 @@ AI는 크게 세 가지 역할로 나뉜다.
 
 ## 18.1 원문 이해
 
-책 이미지에서 추출된 텍스트를 분석한다.
+책의 각 페이지 이미지에서 추출된 텍스트를 페이지 순서에 맞게 분석한다.
 
 - 핵심 주장
 - 주요 근거
@@ -788,6 +800,7 @@ AI는 다음을 지켜야 한다.
 
 ```text
 Book
+BookPage
 ReadingSource
 ReadingSession
 StructureAnswer
@@ -806,18 +819,31 @@ LearningMetric
 
 ---
 
-# 21. ReadingSession 개념
+# 21. Book과 ReadingSession 개념
 
-서비스의 중심 Domain은 `ReadingSession`이 될 가능성이 높다.
+서비스의 콘텐츠 중심 Domain은 `Book`이다.
+
+책 페이지 이미지는 한 장당 하나의 `BookPage`로 등록하고, OCR로 추출한
+텍스트도 같은 페이지 단위로 저장한다. 사용자는 등록된 책과 페이지를
+선택해 여러 번의 `ReadingSession`을 시작할 수 있다.
 
 예상 상태:
 
 ```text
+Book
+├─ title
+├─ author
+├─ pages[]
+│  ├─ pageNumber
+│  ├─ image
+│  ├─ extractedText
+│  └─ ocrStatus
+│
+└─ readingSessions[]
+
 ReadingSession
-├─ source
-│  ├─ book
-│  ├─ images
-│  └─ extractedText
+├─ bookId
+├─ pageIds[]
 │
 ├─ reading
 │  ├─ startedAt
@@ -886,10 +912,10 @@ Phase 1
 Home
 
 Phase 2
-New Session / Book Upload
+Book Registration / Page OCR
 
 Phase 3
-20분 Reading
+New Session / 20분 Reading
 
 Phase 4
 5분 Structure
@@ -1160,7 +1186,11 @@ GPT / Codex / 로컬 LLM은 ReadLogic 관련 작업을 수행할 때 이 문서�
 ```text
 ReadLogic
 
-책 페이지 등록
+새 책 등록
+↓
+페이지별 이미지 / OCR 텍스트 저장
+↓
+등록된 책에서 읽을 페이지 선택
 ↓
 20분 독서
 ↓

@@ -47,16 +47,17 @@
 }
 
 .title {
-  max-width: 40rem;
+  max-width: 42rem;
   color: var(--color-text-primary);
   font-size: var(--font-size-heading-1);
   line-height: 1.18;
   letter-spacing: -0.045em;
   text-wrap: balance;
+  word-break: keep-all;
 }
 
 .intro {
-  max-width: 26rem;
+  max-width: 27rem;
   color: var(--color-text-secondary);
   line-height: 1.75;
   text-wrap: pretty;
@@ -130,20 +131,34 @@
   font-weight: 700;
 }
 
+.bookFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+  gap: var(--space-4);
+}
+
 .field {
   display: grid;
   gap: var(--space-2);
 }
 
 .field > span,
-.pageRange legend {
+.pageNumberSeed > label {
   color: var(--color-text-primary);
   font-size: var(--font-size-caption);
   font-weight: 700;
 }
 
+.field small {
+  margin-inline-start: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .field input,
-.pageRange input {
+.pageNumberSeed input,
+.pageNumberField input {
   width: 100%;
   min-height: 3.25rem;
   border: 1px solid var(--color-border);
@@ -162,70 +177,61 @@
 }
 
 .field input::placeholder,
-.pageRange input::placeholder {
+.pageNumberSeed input::placeholder,
+.pageNumberField input::placeholder {
   color: #89928c;
 }
 
 .field input:focus,
-.pageRange input:focus {
+.pageNumberSeed input:focus,
+.pageNumberField input:focus {
   border-color: var(--color-primary);
   background: var(--color-surface);
   box-shadow: 0 0 0 0.1875rem rgb(36 92 70 / 12%);
 }
 
-.pageRange {
-  display: flex;
-  min-width: 0;
-  margin: var(--space-6) 0 0;
-  padding: 0;
-  border: 0;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.pageRange legend {
-  width: 100%;
-  margin-block-end: var(--space-2);
-}
-
-.pageRange legend span {
-  margin-inline-start: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.pageRange label {
+.pageNumberSeed {
   display: grid;
-  min-width: 0;
-  flex: 1 1 0;
+  margin-block-end: var(--space-4);
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: var(--space-2) var(--space-4);
+}
+
+.pageNumberSeed > div {
+  display: grid;
+  width: 10rem;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
 
-.pageRange input {
-  padding-inline: var(--space-4) 2.5rem;
+.pageNumberSeed input {
+  padding-inline: var(--space-4) 3.5rem;
   grid-area: 1 / 1 / 2 / 3;
   appearance: textfield;
 }
 
-.pageRange input::-webkit-inner-spin-button,
-.pageRange input::-webkit-outer-spin-button {
+.pageNumberSeed input::-webkit-inner-spin-button,
+.pageNumberSeed input::-webkit-outer-spin-button,
+.pageNumberField input::-webkit-inner-spin-button,
+.pageNumberField input::-webkit-outer-spin-button {
   margin: 0;
   appearance: none;
 }
 
-.pageRange label > span:last-child {
+.pageNumberSeed > div > span {
   z-index: 1;
-  margin-inline-end: var(--space-4);
+  margin-inline-end: var(--space-3);
   grid-area: 1 / 2;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-caption);
+  font-size: 0.75rem;
   pointer-events: none;
 }
 
-.rangeDivider {
+.pageNumberSeed > p {
+  grid-column: 1 / -1;
   color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
 .dropzone {
@@ -281,8 +287,7 @@
   font-size: 0.75rem;
 }
 
-.fileInput,
-.srOnly {
+.fileInput {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -300,7 +305,7 @@
   font-size: var(--font-size-caption);
 }
 
-.imageList {
+.pageList {
   display: grid;
   margin: var(--space-4) 0 0;
   padding: 0;
@@ -308,47 +313,91 @@
   list-style: none;
 }
 
-.imageList li {
+.pageList li {
   display: grid;
   min-width: 0;
-  padding: var(--space-2);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-medium);
-  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  grid-template-columns: 4rem minmax(0, 1fr) 8.5rem auto;
   align-items: center;
   gap: var(--space-3);
 }
 
-.imageList img {
-  width: 3rem;
-  height: 3rem;
+.pageList img {
+  width: 4rem;
+  height: 4.5rem;
   border-radius: var(--radius-small);
   object-fit: cover;
   background: var(--color-background);
 }
 
-.imageList li > div {
+.pageMeta {
   display: grid;
   min-width: 0;
 }
 
-.imageList strong,
-.imageList span {
+.pageMeta > strong,
+.pageMeta > span:not(.ocrStatus) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.imageList strong {
+.pageMeta > strong {
   font-size: var(--font-size-caption);
 }
 
-.imageList span {
+.pageMeta > span:not(.ocrStatus) {
   color: var(--color-text-secondary);
   font-size: 0.75rem;
 }
 
-.imageList button {
+.ocrStatus {
+  width: fit-content;
+  margin-block-start: var(--space-1);
+  padding: 0.125rem var(--space-2);
+  border-radius: 999px;
+  color: var(--color-primary);
+  background: #e8f0eb;
+  font-size: 0.6875rem;
+  font-weight: 750;
+}
+
+.pageNumberField {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pageNumberField > span {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.pageNumberField > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.pageNumberField input {
+  min-height: 2.75rem;
+  padding-inline: var(--space-3) 2.25rem;
+  grid-area: 1 / 1 / 2 / 3;
+  appearance: textfield;
+}
+
+.pageNumberField div > span {
+  z-index: 1;
+  margin-inline-end: var(--space-3);
+  grid-area: 1 / 2;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.pageList button {
   min-height: 2.5rem;
   padding-inline: var(--space-3);
   border: 0;
@@ -360,7 +409,7 @@
   cursor: pointer;
 }
 
-.imageList button:hover {
+.pageList button:hover {
   color: var(--color-danger);
   background: rgb(163 58 58 / 7%);
 }
@@ -383,7 +432,7 @@
 .submitButton {
   display: inline-flex;
   min-height: 3.125rem;
-  padding-inline: var(--space-5, 1.25rem);
+  padding-inline: 1.25rem;
   border: 0;
   border-radius: var(--radius-medium);
   align-items: center;
@@ -441,13 +490,13 @@
   font-size: var(--font-size-caption);
 }
 
-.sessionGuide {
+.recognitionGuide {
   position: sticky;
   inset-block-start: calc(var(--layout-header-height) + var(--space-8));
   padding-block-start: var(--space-2);
 }
 
-.sessionGuide h2 {
+.recognitionGuide h2 {
   margin-block-end: var(--space-8);
   color: var(--color-text-primary);
   font-size: 1.5rem;
@@ -455,37 +504,43 @@
   letter-spacing: -0.035em;
 }
 
-.sessionGuide ol {
+.recognitionGuide ol {
   margin: 0;
   padding: 0;
   border-block-start: 1px solid var(--color-border);
   list-style: none;
 }
 
-.sessionGuide li {
+.recognitionGuide li {
   display: grid;
-  min-height: 3.75rem;
+  min-height: 4rem;
   border-block-end: 1px solid var(--color-border);
-  grid-template-columns: 2rem 1fr auto;
+  grid-template-columns: 2rem minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
 }
 
-.sessionGuide li > span {
+.recognitionGuide li > span {
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
-.sessionGuide li strong {
+.recognitionGuide li > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.recognitionGuide li strong {
   font-size: var(--font-size-caption);
 }
 
-.sessionGuide time {
-  color: var(--color-primary);
-  font-size: var(--font-size-caption);
-  font-weight: 750;
+.recognitionGuide li small {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
 }
 
 .guideNote {
@@ -515,7 +570,7 @@
     grid-template-columns: 1fr;
   }
 
-  .sessionGuide {
+  .recognitionGuide {
     position: static;
     display: grid;
     padding-block-start: var(--space-8);
@@ -524,17 +579,37 @@
     column-gap: var(--space-12);
   }
 
-  .sessionGuide h2 {
+  .recognitionGuide h2 {
     grid-column: 1;
   }
 
-  .sessionGuide ol {
+  .recognitionGuide ol {
     grid-column: 2;
     grid-row: 1 / span 3;
   }
 
   .guideNote {
     grid-column: 1;
+  }
+}
+
+@media (max-width: 44rem) {
+  .pageList li {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  }
+
+  .pageList img {
+    width: 3.5rem;
+    height: 4rem;
+  }
+
+  .pageNumberField {
+    grid-column: 2;
+  }
+
+  .pageList button {
+    grid-column: 3;
+    grid-row: 1 / span 2;
   }
 }
 
@@ -560,8 +635,16 @@
     margin-block-end: calc(var(--space-2) * -1);
   }
 
-  .pageRange {
-    gap: var(--space-2);
+  .bookFields {
+    grid-template-columns: 1fr;
+  }
+
+  .pageNumberSeed {
+    grid-template-columns: 1fr;
+  }
+
+  .pageNumberSeed > div {
+    width: 100%;
   }
 
   .dropzone {
@@ -584,18 +667,19 @@
     margin: 0 var(--space-6) var(--space-6);
   }
 
-  .sessionGuide {
+  .recognitionGuide {
     display: block;
   }
 
-  .sessionGuide h2 {
+  .recognitionGuide h2 {
     margin-block-end: var(--space-6);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .field input,
-  .pageRange input,
+  .pageNumberSeed input,
+  .pageNumberField input,
   .dropzone,
   .submitButton {
     transition: none;

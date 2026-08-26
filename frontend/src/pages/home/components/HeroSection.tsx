@@ -26,8 +26,8 @@ export function HeroSection() {
           설명하며 이해를 단단하게 만드는 독서 훈련입니다.
         </p>
         <div className={styles.actions}>
-          <Link className={styles.primaryAction} to={appPaths.newSession}>
-            새 독서 세션 시작
+          <Link className={styles.primaryAction} to={appPaths.newBook}>
+            새 책 등록하기
             <span aria-hidden="true">→</span>
           </Link>
           <a className={styles.secondaryAction} href="#training-flow">

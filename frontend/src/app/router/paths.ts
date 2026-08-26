@@ -1,4 +1,4 @@
 export const appPaths = {
   home: '/',
-  newSession: '/session/new',
+  newBook: '/books/new',
 } as const
