@@ -41,10 +41,17 @@
   text-wrap: pretty;
 }
 
-.primaryAction {
+.actions {
+  display: flex;
+  margin-block-start: var(--space-8);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.primaryAction,
+.secondaryAction {
   display: inline-flex;
   min-height: 3.25rem;
-  margin-block-start: var(--space-8);
   padding-inline: var(--space-6);
   align-items: center;
   justify-content: center;
@@ -55,6 +62,11 @@
   font-weight: 750;
   line-height: 1;
   text-decoration: none;
+}
+
+.primaryAction {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
@@ -65,6 +77,17 @@
 .primaryAction span {
   font-size: 1.125rem;
   line-height: 1;
+}
+
+.secondaryAction {
+  color: var(--color-text-secondary);
+  background: transparent;
+  font-weight: 700;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.secondaryAction:hover {
+  color: var(--color-text-primary);
 }
 
 .rhythm {
@@ -140,9 +163,16 @@
     line-height: 1.65;
   }
 
-  .primaryAction {
-    width: 100%;
+  .actions {
     margin-block-start: var(--space-6);
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .primaryAction,
+  .secondaryAction {
+    width: 100%;
   }
 
   .rhythmStep {
@@ -152,7 +182,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .primaryAction {
+  .primaryAction,
+  .secondaryAction {
     transition: none;
   }
 }

@@ -1,3 +1,7 @@
+import { Link } from 'react-router-dom'
+
+import { appPaths } from '@/app/router/paths'
+
 import styles from './HeroSection.module.css'
 
 const trainingRhythm = [
@@ -21,10 +25,15 @@ export function HeroSection() {
           ReadLogic은 읽은 내용을 구조화하고, 짧게 요약하고, 직접 말로
           설명하며 이해를 단단하게 만드는 독서 훈련입니다.
         </p>
-        <a className={styles.primaryAction} href="#training-flow">
-          훈련 방식 살펴보기
-          <span aria-hidden="true">↓</span>
-        </a>
+        <div className={styles.actions}>
+          <Link className={styles.primaryAction} to={appPaths.newBook}>
+            새 책 등록하기
+            <span aria-hidden="true">→</span>
+          </Link>
+          <a className={styles.secondaryAction} href="#training-flow">
+            훈련 방식 살펴보기
+          </a>
+        </div>
       </div>
 
       <div
