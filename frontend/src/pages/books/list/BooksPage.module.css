@@ -1,0 +1,326 @@
+.page {
+  width: min(
+    calc(100% - (var(--layout-gutter) + var(--layout-gutter))),
+    var(--layout-content-max)
+  );
+  margin-inline: auto;
+  padding-block: var(--space-6) var(--space-24);
+}
+
+.breadcrumb {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.breadcrumb a {
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--color-text-primary);
+}
+
+.breadcrumb span:last-child {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.pageHeader {
+  display: flex;
+  padding-block: var(--space-12) var(--space-16);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.eyebrow {
+  margin-block-end: var(--space-4);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.pageHeader h1 {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading-1);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.045em;
+}
+
+.pageHeader div > p:last-child {
+  max-width: 34rem;
+  margin-block-start: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body-large);
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.primaryAction {
+  display: inline-flex;
+  min-height: 3.125rem;
+  padding-inline: var(--space-5, 1.25rem);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  border-radius: var(--radius-medium);
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  font-weight: 750;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.primaryAction:hover {
+  background: var(--color-primary-hover);
+}
+
+.loadingState,
+.errorState {
+  padding-block: var(--space-16);
+  border-block: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.errorState {
+  color: var(--color-danger);
+}
+
+.emptyState {
+  display: grid;
+  min-height: 18rem;
+  padding: clamp(var(--space-6), 5vw, var(--space-12));
+  border-block: 1px solid var(--color-border);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.emptyMark {
+  display: grid;
+  width: 5rem;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  place-items: center;
+  color: var(--color-primary);
+  background: var(--color-surface);
+  font-size: 1.5rem;
+  font-weight: 850;
+  box-shadow: var(--shadow-elevation-1);
+}
+
+.emptyState h2 {
+  font-size: var(--font-size-heading-2);
+  letter-spacing: -0.035em;
+}
+
+.emptyState p {
+  margin-block-start: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.emptyState a {
+  color: var(--color-primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.libraryHeader {
+  display: flex;
+  padding-block-end: var(--space-4);
+  border-block-end: 1px solid var(--color-border);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.libraryHeader h2 {
+  font-size: 1.125rem;
+  letter-spacing: -0.025em;
+}
+
+.libraryHeader span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.bookGrid {
+  display: grid;
+  margin: 0;
+  padding: var(--space-8) 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+  list-style: none;
+}
+
+.bookCard {
+  display: grid;
+  min-height: 15rem;
+  padding: var(--space-5, 1.25rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  grid-template-columns: 8.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-6);
+  color: inherit;
+  background: var(--color-surface);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.bookCard:hover {
+  border-color: #b8c6bd;
+  box-shadow: var(--shadow-elevation-1);
+  transform: translateY(-0.125rem);
+}
+
+.cover {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  background: #eef2ed;
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover > span:first-child {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  color: var(--color-primary);
+  font-size: 1.5rem;
+  font-weight: 850;
+}
+
+.pageCount {
+  position: absolute;
+  inset-block-end: var(--space-2);
+  inset-inline-end: var(--space-2);
+  display: grid;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding-inline: var(--space-2);
+  border-radius: 999px;
+  place-items: center;
+  color: var(--color-on-primary);
+  background: rgb(23 32 27 / 78%);
+  font-size: 0.6875rem;
+  font-weight: 750;
+}
+
+.bookInfo {
+  min-width: 0;
+}
+
+.bookMeta,
+.updatedAt {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.bookInfo h2 {
+  margin-block-start: var(--space-2);
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 1.375rem;
+  line-height: 1.35;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author {
+  margin-block-start: var(--space-1);
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.updatedAt {
+  margin-block-start: var(--space-6);
+}
+
+.cardArrow {
+  color: var(--color-primary);
+  font-size: 1.125rem;
+}
+
+@media (max-width: 56rem) {
+  .bookGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 40rem) {
+  .page {
+    padding-block-start: var(--space-3);
+    padding-block-end: var(--space-16);
+  }
+
+  .pageHeader {
+    padding-block: var(--space-8) var(--space-12);
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .primaryAction {
+    width: 100%;
+  }
+
+  .emptyState {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .emptyMark {
+    width: 3.75rem;
+  }
+
+  .emptyState a {
+    grid-column: 1 / -1;
+  }
+
+  .bookCard {
+    min-height: 11rem;
+    padding: var(--space-4);
+    grid-template-columns: 6rem minmax(0, 1fr) auto;
+    gap: var(--space-4);
+  }
+
+  .bookInfo h2 {
+    font-size: 1.125rem;
+  }
+
+  .updatedAt {
+    margin-block-start: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction,
+  .bookCard {
+    transition: none;
+  }
+}

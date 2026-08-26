@@ -6,9 +6,10 @@ import {
   type DragEvent,
   type FormEvent,
 } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { appPaths } from '@/app/router/paths'
+import { createBook } from '@/features/books/data/bookRepository'
 
 import styles from './NewBookPage.module.css'
 
@@ -37,13 +38,15 @@ function formatFileSize(size: number) {
 }
 
 export function NewBookPage() {
+  const navigate = useNavigate()
   const [bookTitle, setBookTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [firstPageNumber, setFirstPageNumber] = useState('')
   const [pages, setPages] = useState<BookPageImage[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [uploadMessage, setUploadMessage] = useState('')
-  const [isRegistrationReady, setIsRegistrationReady] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewUrlsRef = useRef(new Set<string>())
 
@@ -95,7 +98,7 @@ export function NewBookPage() {
       if (hasStartingPageNumber) {
         setFirstPageNumber(String(parsedFirstPageNumber + acceptedFiles.length))
       }
-      setIsRegistrationReady(false)
+      setSaveError('')
     }
 
     if (imageFiles.length !== selectedFiles.length) {
@@ -131,7 +134,7 @@ export function NewBookPage() {
         page.id === pageId ? { ...page, pageNumber } : page,
       ),
     )
-    setIsRegistrationReady(false)
+    setSaveError('')
   }
 
   function removePage(pageId: string) {
@@ -144,14 +147,30 @@ export function NewBookPage() {
       return currentPages.filter(({ id }) => id !== pageId)
     })
     setUploadMessage('')
-    setIsRegistrationReady(false)
+    setSaveError('')
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isReady) return
 
-    setIsRegistrationReady(true)
+    setIsSubmitting(true)
+    setSaveError('')
+
+    try {
+      const book = await createBook({
+        author,
+        pages: pages.map(({ file, pageNumber }) => ({
+          file,
+          pageNumber: Number(pageNumber),
+        })),
+        title: bookTitle,
+      })
+      await navigate(appPaths.book(book.id))
+    } catch {
+      setSaveError('책을 저장하지 못했습니다. 다시 시도해 주세요.')
+      setIsSubmitting(false)
+    }
   }
 
   function getFormHint() {
@@ -167,7 +186,7 @@ export function NewBookPage() {
     if (!bookTitle.trim()) {
       return '책 제목을 입력해 주세요.'
     }
-    return `${pages.length}개 페이지를 텍스트로 변환할 준비가 됐어요.`
+    return `${pages.length}개 페이지를 책에 수록할 준비가 됐어요.`
   }
 
   return (
@@ -212,7 +231,7 @@ export function NewBookPage() {
                     maxLength={80}
                     onChange={(event) => {
                       setBookTitle(event.target.value)
-                      setIsRegistrationReady(false)
+                      setSaveError('')
                     }}
                     placeholder="예: 생각에 관한 생각"
                     required
@@ -230,7 +249,7 @@ export function NewBookPage() {
                     maxLength={60}
                     onChange={(event) => {
                       setAuthor(event.target.value)
-                      setIsRegistrationReady(false)
+                      setSaveError('')
                     }}
                     placeholder="예: 대니얼 카너먼"
                     type="text"
@@ -315,7 +334,7 @@ export function NewBookPage() {
                         <strong>{file.name}</strong>
                         <span>{formatFileSize(file.size)}</span>
                         <span className={styles.ocrStatus}>
-                          {isRegistrationReady ? '텍스트 변환 준비' : '인식 대기'}
+                          {isSubmitting ? '책에 저장 중' : '인식 대기'}
                         </span>
                       </div>
                       <label className={styles.pageNumberField}>
@@ -344,28 +363,18 @@ export function NewBookPage() {
           </section>
 
           <div className={styles.formFooter}>
-            <p>{getFormHint()}</p>
+            <p className={saveError ? styles.footerError : undefined} role={saveError ? 'alert' : undefined}>
+              {saveError || getFormHint()}
+            </p>
             <button
               className={styles.submitButton}
-              disabled={!isReady || isRegistrationReady}
+              disabled={!isReady || isSubmitting}
               type="submit"
             >
-              {isRegistrationReady ? '등록 준비 완료' : '책 등록 및 텍스트 변환'}
+              {isSubmitting ? '책을 등록하는 중…' : '책 등록 및 텍스트 변환'}
               <span aria-hidden="true">→</span>
             </button>
           </div>
-
-          {isRegistrationReady && (
-            <div className={styles.preparedNotice} role="status">
-              <span aria-hidden="true">✓</span>
-              <div>
-                <strong>
-                  책과 {pages.length}개의 페이지가 등록될 준비를 마쳤어요.
-                </strong>
-                <p>저장된 이미지는 페이지별 텍스트로 변환되어 책에 쌓입니다.</p>
-              </div>
-            </div>
-          )}
         </form>
 
         <aside className={styles.recognitionGuide} aria-labelledby="recognition-guide-title">

@@ -15,7 +15,10 @@ export function AppHeader() {
         >
           ReadLogic
         </Link>
-        <nav aria-label="주요 탐색">
+        <nav className={styles.navigation} aria-label="주요 탐색">
+          <Link className={styles.navigationLink} to={appPaths.books}>
+            내 책
+          </Link>
           <Link className={styles.primaryAction} to={appPaths.newBook}>
             새 책 등록
           </Link>
