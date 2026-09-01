@@ -169,6 +169,96 @@ public class BookPage {
 		resetForOcr();
 	}
 
+	public boolean claimOcr(Instant startedAt) {
+		if (ocrStatus != OcrStatus.PENDING
+				|| (ocrNextAttemptAt != null && ocrNextAttemptAt.isAfter(startedAt))) {
+			return false;
+		}
+		ocrStatus = OcrStatus.PROCESSING;
+		ocrAttemptCount++;
+		ocrStartedAt = startedAt;
+		ocrNextAttemptAt = null;
+		ocrLastErrorCode = null;
+		ocrLastErrorMessage = null;
+		return true;
+	}
+
+	public boolean completeOcr(
+			int expectedRevision,
+			String text,
+			BigDecimal confidence,
+			String engine,
+			String model,
+			Instant completedAt
+	) {
+		if (!isCurrentProcessing(expectedRevision)) {
+			return false;
+		}
+		extractedText = text;
+		ocrStatus = OcrStatus.READY;
+		ocrConfidence = confidence;
+		ocrEngine = engine;
+		ocrModel = model;
+		ocrLastErrorCode = null;
+		ocrLastErrorMessage = null;
+		ocrCompletedAt = completedAt;
+		ocrNextAttemptAt = null;
+		textSource = TextSource.OCR;
+		return true;
+	}
+
+	public boolean scheduleOcrRetry(
+			int expectedRevision,
+			String errorCode,
+			String errorMessage,
+			Instant nextAttemptAt
+	) {
+		if (!isCurrentProcessing(expectedRevision)) {
+			return false;
+		}
+		ocrStatus = OcrStatus.PENDING;
+		ocrLastErrorCode = errorCode;
+		ocrLastErrorMessage = errorMessage;
+		ocrStartedAt = null;
+		ocrNextAttemptAt = nextAttemptAt;
+		return true;
+	}
+
+	public boolean failOcr(
+			int expectedRevision,
+			String errorCode,
+			String errorMessage,
+			Instant failedAt
+	) {
+		if (!isCurrentProcessing(expectedRevision)) {
+			return false;
+		}
+		ocrStatus = OcrStatus.FAILED;
+		ocrLastErrorCode = errorCode;
+		ocrLastErrorMessage = errorMessage;
+		ocrCompletedAt = failedAt;
+		ocrNextAttemptAt = null;
+		return true;
+	}
+
+	public boolean recoverStaleOcr(Instant startedBefore, Instant nextAttemptAt) {
+		if (ocrStatus != OcrStatus.PROCESSING
+				|| ocrStartedAt == null
+				|| ocrStartedAt.isAfter(startedBefore)) {
+			return false;
+		}
+		ocrStatus = OcrStatus.PENDING;
+		ocrStartedAt = null;
+		ocrNextAttemptAt = nextAttemptAt;
+		ocrLastErrorCode = "OCR_STALE_JOB_RECOVERED";
+		ocrLastErrorMessage = "중단된 OCR 작업을 다시 대기 상태로 전환했습니다.";
+		return true;
+	}
+
+	private boolean isCurrentProcessing(int expectedRevision) {
+		return ocrStatus == OcrStatus.PROCESSING && ocrRevision == expectedRevision;
+	}
+
 	private void resetForOcr() {
 		Instant now = Instant.now();
 		this.extractedText = "";
