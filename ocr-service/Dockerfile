@@ -12,11 +12,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends fonts-noto-cjk libgl1 libglib2.0-0 \
+    && apt-get install --yes --no-install-recommends \
+        fonts-noto-cjk \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev \
+    && .venv/bin/python -c "import paddle"
 
 COPY src src
 
