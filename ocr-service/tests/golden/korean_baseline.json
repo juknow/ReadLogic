@@ -1,0 +1,13 @@
+{
+  "fixtureId": "synthetic-korean-book-page-v1",
+  "referenceText": "독서는 생각을 확장한다\n질문은 이해를 깊게 만든다",
+  "ocrVersion": "PP-OCRv5",
+  "detector": "PP-OCRv5_server_det",
+  "recognizer": "korean_PP-OCRv5_mobile_rec",
+  "packageVersions": {
+    "paddleocr": "3.3.2",
+    "paddlepaddle": "3.2.0"
+  },
+  "minimumCharacterAccuracy": 0.75,
+  "notes": "The golden reference is rendered at test time with an installed CJK font. Real-model output is measured in CI because model files are not committed."
+}
