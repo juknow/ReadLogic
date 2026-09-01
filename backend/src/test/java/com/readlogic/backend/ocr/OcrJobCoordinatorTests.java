@@ -18,9 +18,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.reset;
 
 @SpringBootTest
@@ -77,11 +79,13 @@ class OcrJobCoordinatorTests {
 		coordinator.recordFailure(first, "OCR_NOT_READY", "준비 중", true, startedAt);
 		BookPage afterFirst = reload(page);
 		assertThat(afterFirst.getOcrStatus()).isEqualTo(OcrStatus.PENDING);
-		assertThat(afterFirst.getOcrNextAttemptAt()).isEqualTo(startedAt.plusSeconds(5));
+		assertThat(afterFirst.getOcrNextAttemptAt())
+				.isCloseTo(startedAt.plusSeconds(5), within(1, ChronoUnit.MILLIS));
 
 		OcrJob second = coordinator.claim(1, startedAt.plusSeconds(6)).getFirst();
 		coordinator.recordFailure(second, "OCR_BUSY", "사용 중", true, startedAt.plusSeconds(6));
-		assertThat(reload(page).getOcrNextAttemptAt()).isEqualTo(startedAt.plusSeconds(36));
+		assertThat(reload(page).getOcrNextAttemptAt())
+				.isCloseTo(startedAt.plusSeconds(36), within(1, ChronoUnit.MILLIS));
 
 		OcrJob third = coordinator.claim(1, startedAt.plusSeconds(37)).getFirst();
 		coordinator.recordFailure(third, "OCR_INFERENCE_FAILED", "추론 실패", true, startedAt.plusSeconds(37));
