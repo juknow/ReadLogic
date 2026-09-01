@@ -1,0 +1,569 @@
+.page {
+  width: min(
+    calc(100% - (var(--layout-gutter) + var(--layout-gutter))),
+    var(--layout-content-max)
+  );
+  margin-inline: auto;
+  padding-block: var(--space-6) var(--space-24);
+}
+
+.breadcrumb {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.breadcrumb a {
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  color: var(--color-text-primary);
+}
+
+.breadcrumb span:last-child {
+  max-width: 18rem;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pageHeader {
+  display: flex;
+  padding-block: var(--space-12) var(--space-16);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.eyebrow,
+.pagesHeader p,
+.routeEyebrow {
+  margin-block-end: var(--space-4);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.pageHeader h1 {
+  max-width: 44rem;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-heading-1);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.045em;
+  word-break: keep-all;
+}
+
+.headerMeta {
+  display: flex;
+  margin-block-start: var(--space-4);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
+.headerActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+}
+
+.primaryButton,
+.secondaryButton,
+.addPageButton {
+  min-height: 3rem;
+  padding-inline: 1.25rem;
+  border-radius: var(--radius-medium);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 0;
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.primaryButton:disabled {
+  color: #8c9690;
+  background: #e2e6e2;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.statusMessage {
+  display: flex;
+  margin-block-end: var(--space-8);
+  padding: var(--space-4);
+  border: 1px solid rgb(47 109 81 / 22%);
+  border-radius: var(--radius-medium);
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-success);
+  background: rgb(47 109 81 / 7%);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.statusMessage span {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  place-items: center;
+  color: var(--color-on-primary);
+  background: var(--color-success);
+  font-size: 0.75rem;
+}
+
+.editForm {
+  margin-block-end: var(--space-16);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-elevation-1);
+}
+
+.editSection {
+  display: grid;
+  padding: clamp(var(--space-6), 4vw, var(--space-8));
+  grid-template-columns: minmax(11rem, 0.6fr) minmax(0, 1.4fr);
+  gap: var(--space-8);
+}
+
+.editSection + .editSection {
+  border-block-start: 1px solid var(--color-border);
+}
+
+.editSectionHeader {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.editSectionHeader > span {
+  color: var(--color-accent);
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.editSectionHeader h2 {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: -0.025em;
+}
+
+.editSectionHeader p {
+  margin-block-start: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  line-height: 1.6;
+}
+
+.bookFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+  align-content: start;
+  gap: var(--space-4);
+}
+
+.bookFields label,
+.newPageNumberField,
+.newPageFileField {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bookFields label > span,
+.newPageNumberField > span,
+.newPageFileField > span,
+.pageNumberField > span {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.bookFields small {
+  margin-inline-start: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.bookFields input,
+.newPageNumberField input,
+.pageNumberField input {
+  width: 100%;
+  min-height: 3.125rem;
+  padding-inline: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.bookFields input:focus,
+.newPageNumberField input:focus,
+.pageNumberField input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.1875rem rgb(36 92 70 / 12%);
+}
+
+.addPageControls {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+
+.newPageNumberField > div,
+.pageNumberField > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.newPageNumberField input,
+.pageNumberField input {
+  padding-inline-end: 2.5rem;
+  grid-area: 1 / 1 / 2 / 3;
+  appearance: textfield;
+}
+
+.newPageNumberField input::-webkit-inner-spin-button,
+.newPageNumberField input::-webkit-outer-spin-button,
+.pageNumberField input::-webkit-inner-spin-button,
+.pageNumberField input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.newPageNumberField div > span,
+.pageNumberField div > span {
+  z-index: 1;
+  margin-inline-end: var(--space-3);
+  grid-area: 1 / 2;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.newPageFileField > div {
+  display: flex;
+  min-height: 3.125rem;
+  padding-inline: var(--space-4);
+  border: 1px dashed #b7c2ba;
+  border-radius: var(--radius-medium);
+  align-items: center;
+  color: var(--color-text-secondary);
+  background: var(--color-background);
+  cursor: pointer;
+}
+
+.newPageFileField input,
+.replaceAction input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.newPageFileField div > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.addPageButton {
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  background: transparent;
+}
+
+.addPageButton:hover {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+}
+
+.addPageMessage {
+  margin-block-start: var(--space-3);
+  grid-column: 2;
+  color: var(--color-primary);
+  font-size: var(--font-size-caption);
+}
+
+.validationMessage {
+  margin: 0 var(--space-8) var(--space-6);
+  color: var(--color-danger);
+  font-size: var(--font-size-caption);
+}
+
+.pagesSection {
+  padding-block-start: var(--space-4);
+}
+
+.pagesHeader {
+  display: flex;
+  padding-block-end: var(--space-4);
+  border-block-end: 1px solid var(--color-border);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.pagesHeader p {
+  margin-block-end: var(--space-2);
+}
+
+.pagesHeader h2 {
+  font-size: var(--font-size-heading-2);
+  letter-spacing: -0.035em;
+}
+
+.pagesHeader > span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.pageGrid {
+  display: grid;
+  margin: 0;
+  padding: var(--space-8) 0 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  list-style: none;
+}
+
+.pageCard {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  background: var(--color-surface);
+}
+
+.pageImage {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  border-block-end: 1px solid var(--color-border);
+  background: #eef2ed;
+}
+
+.pageImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pageImage > span {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  color: var(--color-on-primary);
+  background: rgb(23 32 27 / 74%);
+  font-size: 0.6875rem;
+  font-weight: 750;
+}
+
+.pageCardBody {
+  display: grid;
+  padding: var(--space-4);
+}
+
+.pageTitle {
+  font-size: 1.125rem;
+}
+
+.fileName {
+  margin-block-start: var(--space-2);
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocrStatus {
+  width: fit-content;
+  margin-block-start: var(--space-2);
+  padding: 0.125rem var(--space-2);
+  border-radius: 999px;
+  color: var(--color-primary);
+  background: #e8f0eb;
+  font-size: 0.6875rem;
+  font-weight: 750;
+}
+
+.pageNumberField {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pageNumberField input {
+  min-height: 2.75rem;
+}
+
+.replaceAction {
+  display: inline-flex;
+  min-height: 2.5rem;
+  margin-block-start: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.loadingState,
+.routeState {
+  width: min(
+    calc(100% - (var(--layout-gutter) + var(--layout-gutter))),
+    var(--layout-content-max)
+  );
+  margin-inline: auto;
+}
+
+.loadingState {
+  padding-block: var(--space-24);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.routeState {
+  display: grid;
+  min-height: calc(100svh - var(--layout-header-height));
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.routeState h1 {
+  font-size: var(--font-size-heading-1);
+  letter-spacing: -0.04em;
+}
+
+.routeState > p:not(.routeEyebrow) {
+  margin-block-start: var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.routeState a {
+  margin-block-start: var(--space-6);
+  color: var(--color-primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+@media (max-width: 56rem) {
+  .editSection {
+    grid-template-columns: 1fr;
+  }
+
+  .addPageMessage {
+    grid-column: 1;
+  }
+
+  .pageGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 44rem) {
+  .addPageControls {
+    grid-template-columns: 1fr;
+  }
+
+  .addPageButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 40rem) {
+  .page {
+    padding-block-start: var(--space-3);
+    padding-block-end: var(--space-16);
+  }
+
+  .pageHeader {
+    padding-block: var(--space-8) var(--space-12);
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  .headerMeta {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .headerActions,
+  .primaryButton,
+  .secondaryButton {
+    flex: 1 1 0;
+  }
+
+  .bookFields {
+    grid-template-columns: 1fr;
+  }
+
+  .pageGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pageCard {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+  }
+
+  .pageImage {
+    height: 100%;
+    aspect-ratio: 3 / 4;
+    border-block-end: 0;
+    border-inline-end: 1px solid var(--color-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .bookFields input,
+  .newPageNumberField input,
+  .pageNumberField input {
+    transition: none;
+  }
+}

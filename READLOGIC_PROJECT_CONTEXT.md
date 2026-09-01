@@ -446,11 +446,14 @@ Retry Mission
 /
 Home
 
+/books
+내 책 목록 / 등록한 책 열람
+
 /books/new
 새 책 등록 및 페이지 이미지 업로드
 
 /books/:bookId
-책 상세 / 페이지별 원문
+책 상세 / 페이지별 원문 / 책과 페이지 수정
 
 /books/:bookId/session/new
 등록된 책에서 새로운 독서 세션
@@ -827,6 +830,10 @@ LearningMetric
 텍스트도 같은 페이지 단위로 저장한다. 사용자는 등록된 책과 페이지를
 선택해 여러 번의 `ReadingSession`을 시작할 수 있다.
 
+등록된 책은 제목과 저자를 수정할 수 있어야 한다. `BookPage`는 페이지
+번호 수정, 기존 이미지 교체, 임의 페이지 번호의 새 이미지 추가를
+지원한다. 이미지가 교체되면 기존 OCR 텍스트는 폐기하고 다시 추출한다.
+
 예상 상태:
 
 ```text
@@ -878,12 +885,14 @@ ReadingSession
 
 ## Feature State
 
+- 편집 중인 Book / BookPage 초안
 - 현재 구조화 입력
 - 현재 녹음 상태
 - 타이머 상태
 
 ## Server State
 
+- Book / BookPage
 - ReadingSession
 - OCR 결과
 - Feedback
@@ -912,30 +921,33 @@ Phase 1
 Home
 
 Phase 2
-Book Registration / Page OCR
+Book Library / Registration / Page Management
 
 Phase 3
-New Session / 20분 Reading
+Page OCR
 
 Phase 4
-5분 Structure
+New Session / 20분 Reading
 
 Phase 5
-5분 Summary
+5분 Structure
 
 Phase 6
-3분 Speaking
+5분 Summary
 
 Phase 7
-STT
+3분 Speaking
 
 Phase 8
-AI Feedback
+STT
 
 Phase 9
-Retry
+AI Feedback
 
 Phase 10
+Retry
+
+Phase 11
 History / Growth
 ```
 
@@ -1155,15 +1167,17 @@ ReadLogic의 성공 기준은 사용자가 단순히 많은 책을 읽는 것이
 
 # 31. 현재 상태 기준
 
-현재 개발의 가장 초기 단계에서는 다음에 집중한다.
+현재 개발 단계에서는 다음에 집중한다.
 
 1. 프론트엔드 구조 설계
 2. 디자인 시스템 기반 마련
 3. Home 화면
-4. Training Flow 표현
-5. 향후 학습 세션 기능을 연결할 수 있는 구조
+4. 새 책 등록과 페이지 이미지 저장
+5. 내 책 목록과 책/페이지 수정
+6. 향후 학습 세션 기능을 연결할 수 있는 구조
 
-현재 단계에서 OCR, STT, AI 평가, DB 등을 한 번에 구현하지 않는다.
+백엔드 API가 연결되기 전에는 브라우저 IndexedDB를 임시 저장소로 사용한다.
+현재 단계에서 실제 OCR, STT, AI 평가, 서버 DB 등을 한 번에 구현하지 않는다.
 
 ---
 

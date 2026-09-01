@@ -429,6 +429,10 @@
   font-size: var(--font-size-caption);
 }
 
+.formFooter .footerError {
+  color: var(--color-danger);
+}
+
 .submitButton {
   display: inline-flex;
   min-height: 3.125rem;
@@ -453,41 +457,6 @@
   color: #8c9690;
   background: #e2e6e2;
   cursor: not-allowed;
-}
-
-.preparedNotice {
-  display: flex;
-  margin: 0 var(--space-8) var(--space-8);
-  padding: var(--space-4);
-  border: 1px solid rgb(47 109 81 / 22%);
-  border-radius: var(--radius-medium);
-  align-items: flex-start;
-  gap: var(--space-3);
-  color: var(--color-success);
-  background: rgb(47 109 81 / 7%);
-}
-
-.preparedNotice > span {
-  display: grid;
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  place-items: center;
-  color: var(--color-on-primary);
-  background: var(--color-success);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.preparedNotice strong {
-  color: var(--color-text-primary);
-}
-
-.preparedNotice p {
-  margin-block-start: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-caption);
 }
 
 .recognitionGuide {
@@ -661,10 +630,6 @@
 
   .submitButton {
     width: 100%;
-  }
-
-  .preparedNotice {
-    margin: 0 var(--space-6) var(--space-6);
   }
 
   .recognitionGuide {
