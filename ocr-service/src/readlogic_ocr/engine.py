@@ -7,7 +7,15 @@ import numpy as np
 
 from readlogic_ocr.detection import PaddleTextDetector, TextDetector, perspective_crop
 from readlogic_ocr.errors import OcrInferenceError
-from readlogic_ocr.models import CorrectionMetadata, OcrWarning, RecognizedRegion
+from readlogic_ocr.models import (
+    CorrectionMetadata,
+    OcrLine,
+    OcrParagraph,
+    OcrWarning,
+    RecognizedRegion,
+)
+from readlogic_ocr.ordering import reconstruct_reading_order
+from readlogic_ocr.paragraphs import fallback_paragraphs, group_paragraphs
 from readlogic_ocr.preprocessing import (
     DocumentPreprocessor,
     PaddleDocumentPreprocessor,
@@ -32,6 +40,8 @@ class EngineResult:
     requested_language: str = "ko"
     detected_language: str = "ko"
     primary_model: str = "korean_PP-OCRv5_mobile_rec"
+    lines: tuple[OcrLine, ...] = ()
+    paragraphs: tuple[OcrParagraph, ...] = ()
 
 
 class OcrEngine(Protocol):
@@ -88,12 +98,24 @@ class PaddleOcrEngine:
                 )
                 if candidate.text
             ]
+            lines = reconstruct_reading_order(tuple(regions))
+            grouping_warnings: tuple[OcrWarning, ...] = ()
+            try:
+                paragraphs = group_paragraphs(lines)
+            except Exception:
+                paragraphs = fallback_paragraphs(lines)
+                grouping_warnings = (
+                    OcrWarning(
+                        code="PARAGRAPH_GROUPING_FALLBACK",
+                        message="Each recognized line was returned as a separate paragraph.",
+                    ),
+                )
             return EngineResult(
                 confidence=_average_confidence(regions),
-                text=_assemble_text(regions),
+                text="\n\n".join(paragraph.text for paragraph in paragraphs),
                 regions=tuple(regions),
                 correction=preprocessed.correction,
-                warnings=preprocessed.warnings + routing.warnings,
+                warnings=preprocessed.warnings + routing.warnings + grouping_warnings,
                 image_size=(
                     int(preprocessed.image.shape[1]),
                     int(preprocessed.image.shape[0]),
@@ -101,6 +123,8 @@ class PaddleOcrEngine:
                 requested_language=routing.requested_language,
                 detected_language=routing.detected_language,
                 primary_model=routing.primary_model,
+                lines=lines,
+                paragraphs=paragraphs,
             )
         except OcrInferenceError:
             raise
