@@ -5,12 +5,18 @@ from typing import Any, Protocol
 
 import numpy as np
 
+from readlogic_ocr.detection import PaddleTextDetector, TextDetector, perspective_crop
 from readlogic_ocr.errors import OcrInferenceError
 from readlogic_ocr.models import CorrectionMetadata, OcrWarning, RecognizedRegion
 from readlogic_ocr.preprocessing import (
     DocumentPreprocessor,
     PaddleDocumentPreprocessor,
     identity_preprocessing,
+)
+from readlogic_ocr.recognition import (
+    PaddleTextLineOrienter,
+    RecognitionRegistry,
+    TextLineOrienter,
 )
 
 
@@ -22,45 +28,70 @@ class EngineResult:
     correction: CorrectionMetadata = CorrectionMetadata()
     warnings: tuple[OcrWarning, ...] = ()
     image_size: tuple[int, int] = (0, 0)
+    requested_language: str = "ko"
+    detected_language: str = "ko"
+    primary_model: str = "korean_PP-OCRv5_mobile_rec"
 
 
 class OcrEngine(Protocol):
-    def recognize(self, image: np.ndarray) -> EngineResult: ...
+    def recognize(self, image: np.ndarray, language: str = "ko") -> EngineResult: ...
 
 
 class PaddleOcrEngine:
-    def __init__(self, preprocessor: DocumentPreprocessor | None = None) -> None:
-        from paddleocr import PaddleOCR
+    _pipeline: Any
 
+    def __init__(
+        self,
+        preprocessor: DocumentPreprocessor | None = None,
+        detector: TextDetector | None = None,
+        orienter: TextLineOrienter | None = None,
+        registry: RecognitionRegistry | None = None,
+    ) -> None:
         self._preprocessor = preprocessor or PaddleDocumentPreprocessor()
-        self._pipeline = PaddleOCR(
-            lang="korean",
-            ocr_version="PP-OCRv5",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=True,
-        )
-        self._language = "ko"
-        self._recognition_model = "korean_PP-OCRv5_mobile_rec"
+        self._detector = detector or PaddleTextDetector()
+        self._orienter = orienter or PaddleTextLineOrienter()
+        self._registry = registry or RecognitionRegistry()
 
-    def recognize(self, image: np.ndarray) -> EngineResult:
+    def recognize(self, image: np.ndarray, language: str = "ko") -> EngineResult:
         try:
+            if hasattr(self, "_pipeline"):
+                return self._recognize_legacy(image)
             preprocessed = (
                 self._preprocessor.correct(image)
                 if hasattr(self, "_preprocessor")
                 else identity_preprocessing(image)
             )
-            results = self._pipeline.predict(preprocessed.image)
-            regions = list(
-                _read_regions(
-                    results,
-                    language=getattr(self, "_language", "ko"),
-                    model=getattr(
-                        self,
-                        "_recognition_model",
-                        "korean_PP-OCRv5_mobile_rec",
-                    ),
+            if language == "auto":
+                language = "ko"
+            detected_regions = self._detector.detect(preprocessed.image)
+            crops = tuple(
+                perspective_crop(preprocessed.image, region.polygon)
+                for region in detected_regions
+            )
+            oriented_crops = self._orienter.orient(crops)
+            candidates = self._registry.recognize(oriented_crops, language)
+            if len(candidates) != len(detected_regions):
+                raise OcrInferenceError()
+            regions = [
+                RecognizedRegion(
+                    text=candidate.text,
+                    recognition_confidence=candidate.confidence,
+                    detection_confidence=detected.confidence,
+                    polygon=detected.polygon,
+                    language=candidate.language,
+                    model=candidate.model,
                 )
+                for detected, candidate in zip(
+                    detected_regions,
+                    candidates,
+                    strict=True,
+                )
+                if candidate.text
+            ]
+            primary_model = (
+                regions[0].model
+                if regions
+                else self._registry.loaded_model_names[-1]
             )
             return EngineResult(
                 confidence=_average_confidence(regions),
@@ -72,11 +103,24 @@ class PaddleOcrEngine:
                     int(preprocessed.image.shape[1]),
                     int(preprocessed.image.shape[0]),
                 ),
+                requested_language=language,
+                detected_language=language if regions else "und",
+                primary_model=primary_model,
             )
         except OcrInferenceError:
             raise
         except Exception as exception:
             raise OcrInferenceError() from exception
+
+    def _recognize_legacy(self, image: np.ndarray) -> EngineResult:
+        results = self._pipeline.predict(image)
+        regions = list(_read_regions(results))
+        return EngineResult(
+            confidence=_average_confidence(regions),
+            text=_assemble_text(regions),
+            regions=tuple(regions),
+            image_size=(int(image.shape[1]), int(image.shape[0])),
+        )
 
 
 def _read_regions(
