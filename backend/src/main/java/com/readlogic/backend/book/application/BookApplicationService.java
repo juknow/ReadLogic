@@ -174,6 +174,16 @@ public class BookApplicationService {
 	}
 
 	@Transactional
+	public BookPage requestPageOcr(UUID bookId, UUID pageId) {
+		Book book = getBookWithPages(bookId);
+		BookPage page = findPage(book, pageId);
+		page.requestOcr();
+		book.touch();
+		bookRepository.saveAndFlush(book);
+		return page;
+	}
+
+	@Transactional
 	public void deletePage(UUID bookId, UUID pageId) {
 		Book book = getBookWithPages(bookId);
 		BookPage page = findPage(book, pageId);
