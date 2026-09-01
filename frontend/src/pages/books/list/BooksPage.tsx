@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { appPaths } from '@/app/router/paths'
-import { getBooks } from '@/features/books/data/bookRepository'
-import { useObjectUrl } from '@/features/books/hooks/useObjectUrl'
-import type { Book } from '@/features/books/model/book'
+import { getBookSummaries } from '@/features/books/data/bookApiRepository'
+import type { BookSummary } from '@/features/books/model/book'
+import { ApiError } from '@/shared/api/apiClient'
 
 import styles from './BooksPage.module.css'
 
@@ -14,23 +14,25 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
 })
 
-function getPageSummary(book: Book) {
-  if (book.pages.length === 0) return '등록된 페이지 없음'
+function getPageSummary(book: BookSummary) {
+  if (
+    book.pageCount === 0 ||
+    book.firstPageNumber === null ||
+    book.lastPageNumber === null
+  ) {
+    return '등록된 페이지 없음'
+  }
 
-  const sortedPages = [...book.pages].sort(
-    (left, right) => left.pageNumber - right.pageNumber,
-  )
-  const firstPage = sortedPages[0].pageNumber
-  const lastPage = sortedPages[sortedPages.length - 1].pageNumber
+  const firstPage = book.firstPageNumber
+  const lastPage = book.lastPageNumber
   const pageRange =
     firstPage === lastPage ? `${firstPage}쪽` : `${firstPage}–${lastPage}쪽`
 
-  return `${pageRange} · ${book.pages.length}페이지`
+  return `${pageRange} · ${book.pageCount}페이지`
 }
 
-function BookCard({ book }: { book: Book }) {
-  const pendingCoverUrl = useObjectUrl(book.pages[0]?.pendingImage)
-  const coverUrl = pendingCoverUrl || book.pages[0]?.imageUrl
+function BookCard({ book }: { book: BookSummary }) {
+  const coverUrl = book.coverPage?.imageUrl
 
   return (
     <li>
@@ -41,7 +43,7 @@ function BookCard({ book }: { book: Book }) {
           ) : (
             <span aria-hidden="true">R</span>
           )}
-          <span className={styles.pageCount}>{book.pages.length}</span>
+          <span className={styles.pageCount}>{book.pageCount}</span>
         </div>
         <div className={styles.bookInfo}>
           <p className={styles.bookMeta}>{getPageSummary(book)}</p>
@@ -60,19 +62,23 @@ function BookCard({ book }: { book: Book }) {
 }
 
 export function BooksPage() {
-  const [books, setBooks] = useState<Book[] | null>(null)
+  const [books, setBooks] = useState<BookSummary[] | null>(null)
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     let isActive = true
 
-    void getBooks()
+    void getBookSummaries()
       .then((storedBooks) => {
         if (isActive) setBooks(storedBooks)
       })
-      .catch(() => {
+      .catch((error) => {
         if (isActive) {
-          setLoadError('등록한 책을 불러오지 못했습니다. 다시 시도해 주세요.')
+          setLoadError(
+            error instanceof ApiError
+              ? error.message
+              : '등록한 책을 불러오지 못했습니다. 다시 시도해 주세요.',
+          )
         }
       })
 
