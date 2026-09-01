@@ -1,4 +1,6 @@
-FROM ghcr.io/astral-sh/uv:0.12.5-python3.11-bookworm-slim
+FROM python:3.11.16-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
