@@ -46,3 +46,13 @@ app:
       access-key: ${MINIO_ACCESS_KEY:readlogic}
       secret-key: ${MINIO_SECRET_KEY:readlogic-local-password}
       bucket: ${MINIO_BUCKET:readlogic-pages}
+  ocr:
+    enabled: ${OCR_ENABLED:true}
+    base-url: ${OCR_BASE_URL:http://localhost:8000}
+    connect-timeout: ${OCR_CONNECT_TIMEOUT:5s}
+    read-timeout: ${OCR_READ_TIMEOUT:120s}
+    max-attempts: ${OCR_MAX_ATTEMPTS:3}
+    poll-interval: ${OCR_POLL_INTERVAL:2s}
+    stale-after: ${OCR_STALE_AFTER:5m}
+    concurrency: ${OCR_CONCURRENCY:1}
+    batch-size: ${OCR_BATCH_SIZE:5}
