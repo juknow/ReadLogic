@@ -49,6 +49,7 @@ Flyway가 시작 시 `src/main/resources/db/migration`의 스키마를 자동 �
 | `POST` | `/api/books` | 책과 여러 페이지 이미지 등록 |
 | `GET` | `/api/books` | 책 목록 조회 |
 | `GET` | `/api/books/{bookId}` | 책과 페이지 상세 조회 |
+| `PUT` | `/api/books/{bookId}` | 책 정보와 페이지 변경사항 일괄 저장 |
 | `PATCH` | `/api/books/{bookId}` | 제목과 저자 수정 |
 | `DELETE` | `/api/books/{bookId}` | 책과 관련 이미지 삭제 |
 | `POST` | `/api/books/{bookId}/pages` | 페이지 추가 |
@@ -65,6 +66,17 @@ curl -X POST http://localhost:8080/api/books \
   -F 'images=@page-1.png;type=image/png' \
   -F 'images=@page-2.png;type=image/png'
 ```
+
+책 일괄 수정은 최종 페이지 목록을 `metadata`에 보내고 추가·교체할 이미지만 `images`에 보냅니다. 기존 페이지 ID는 모두 포함해야 하며 `imageIndex`는 `images` 순서의 0부터 시작하는 인덱스입니다.
+
+```shell
+curl -X PUT http://localhost:8080/api/books/{bookId} \
+  -F 'metadata={"title":"논리적으로 읽기","author":"홍길동","pages":[{"id":"기존-페이지-UUID","pageNumber":2,"imageIndex":0},{"id":null,"pageNumber":1,"imageIndex":1}]};type=application/json' \
+  -F 'images=@replacement.png;type=image/png' \
+  -F 'images=@new-page.png;type=image/png'
+```
+
+요청의 제목·페이지 번호·추가·교체는 하나의 트랜잭션으로 처리됩니다. 검증 또는 이미지 저장에 실패하면 DB 변경을 롤백하고 요청 중 저장한 객체도 정리합니다.
 
 페이지 한 장을 추가할 때는 `metadata`와 `image`를 사용합니다.
 

@@ -81,6 +81,29 @@ public class BookController {
 		return BookResponse.from(bookService.updateBook(bookId, request.title(), request.author()));
 	}
 
+	@PutMapping(path = "/{bookId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public BookResponse replaceBook(
+			@PathVariable UUID bookId,
+			@RequestPart("metadata") @Valid ReplaceBookRequest request,
+			@RequestPart(value = "images", required = false) List<MultipartFile> images
+	) {
+		List<PageImageUpload> uploads = images == null
+				? List.of()
+				: images.stream().map(this::toUpload).toList();
+		BookApplicationService.ReplaceBookCommand command = new BookApplicationService.ReplaceBookCommand(
+				request.title(),
+				request.author(),
+				request.pages().stream()
+						.map(page -> new BookApplicationService.ReplacePageCommand(
+								page.id(),
+								page.pageNumber(),
+								page.imageIndex()
+						))
+						.toList()
+		);
+		return BookResponse.from(bookService.replaceBook(bookId, command, uploads));
+	}
+
 	@DeleteMapping("/{bookId}")
 	public ResponseEntity<Void> deleteBook(@PathVariable UUID bookId) {
 		bookService.deleteBook(bookId);

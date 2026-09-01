@@ -71,11 +71,112 @@ class BookApiIntegrationTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$[0].id").value(savedBook.getId().toString()))
 				.andExpect(jsonPath("$[0].pageCount").value(2))
+				.andExpect(jsonPath("$[0].firstPageNumber").value(1))
+				.andExpect(jsonPath("$[0].lastPageNumber").value(2))
 				.andExpect(jsonPath("$[0].coverPage.pageNumber").value(1));
 
 		mockMvc.perform(get("/api/books/{bookId}", savedBook.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.pages.length()").value(2));
+	}
+
+	@Test
+	void replacesBookMetadataWithoutChangingPages() throws Exception {
+		when(imageStorage.store(any(), any(), eq("image/png"), anyLong(), any()))
+				.thenReturn("object-1", "object-2");
+		mockMvc.perform(createBookRequest()).andExpect(status().isCreated());
+		Book book = bookRepository.findAllByOrderByCreatedAtDesc().getFirst();
+
+		String metadata = """
+				{
+				  "title":"일괄 수정된 책",
+				  "author":"새 저자",
+				  "pages":[
+				    {"id":"%s","pageNumber":1,"imageIndex":null},
+				    {"id":"%s","pageNumber":2,"imageIndex":null}
+				  ]
+				}
+				""".formatted(book.getPages().get(0).getId(), book.getPages().get(1).getId());
+
+		mockMvc.perform(replaceBookRequest(book.getId(), metadata))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.title").value("일괄 수정된 책"))
+				.andExpect(jsonPath("$.author").value("새 저자"))
+				.andExpect(jsonPath("$.pages.length()").value(2));
+	}
+
+	@Test
+	void swapsPageNumbersAndSavesNewAndReplacementImagesTogether() throws Exception {
+		when(imageStorage.store(any(), any(), eq("image/png"), anyLong(), any()))
+				.thenReturn("object-1", "object-2", "object-3", "object-4");
+		mockMvc.perform(createBookRequest()).andExpect(status().isCreated());
+		Book book = bookRepository.findAllByOrderByCreatedAtDesc().getFirst();
+		BookPage firstPage = book.getPages().get(0);
+		BookPage secondPage = book.getPages().get(1);
+
+		String metadata = """
+				{
+				  "title":"복합 수정된 책",
+				  "author":"저자",
+				  "pages":[
+				    {"id":"%s","pageNumber":2,"imageIndex":0},
+				    {"id":"%s","pageNumber":1,"imageIndex":null},
+				    {"id":null,"pageNumber":3,"imageIndex":1}
+				  ]
+				}
+				""".formatted(firstPage.getId(), secondPage.getId());
+
+		mockMvc.perform(replaceBookRequest(book.getId(), metadata)
+					.file(imagePart("images", "replacement.png"))
+					.file(imagePart("images", "third.png")))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.pages[0].id").value(secondPage.getId().toString()))
+				.andExpect(jsonPath("$.pages[0].pageNumber").value(1))
+				.andExpect(jsonPath("$.pages[1].id").value(firstPage.getId().toString()))
+				.andExpect(jsonPath("$.pages[1].pageNumber").value(2))
+				.andExpect(jsonPath("$.pages[1].fileName").value("replacement.png"))
+				.andExpect(jsonPath("$.pages[2].pageNumber").value(3))
+				.andExpect(jsonPath("$.pages[2].fileName").value("third.png"));
+		verify(imageStorage).delete("object-1");
+	}
+
+	@Test
+	void rejectsInvalidAggregateReplacementRequests() throws Exception {
+		when(imageStorage.store(any(), any(), eq("image/png"), anyLong(), any()))
+				.thenReturn("object-1", "object-2");
+		mockMvc.perform(createBookRequest()).andExpect(status().isCreated());
+		Book book = bookRepository.findAllByOrderByCreatedAtDesc().getFirst();
+		BookPage firstPage = book.getPages().get(0);
+
+		String missingPageMetadata = """
+				{"title":"잘못된 수정","author":"","pages":[
+				  {"id":"%s","pageNumber":1,"imageIndex":null}
+				]}
+				""".formatted(firstPage.getId());
+		mockMvc.perform(replaceBookRequest(book.getId(), missingPageMetadata))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		String duplicateNumberMetadata = """
+				{"title":"잘못된 수정","author":"","pages":[
+				  {"id":"%s","pageNumber":1,"imageIndex":null},
+				  {"id":"%s","pageNumber":1,"imageIndex":null}
+				]}
+				""".formatted(book.getPages().get(0).getId(), book.getPages().get(1).getId());
+		mockMvc.perform(replaceBookRequest(book.getId(), duplicateNumberMetadata))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("DUPLICATE_PAGE_NUMBER"));
+
+		String invalidImageIndexMetadata = """
+				{"title":"잘못된 수정","author":"","pages":[
+				  {"id":"%s","pageNumber":1,"imageIndex":1},
+				  {"id":"%s","pageNumber":2,"imageIndex":null}
+				]}
+				""".formatted(book.getPages().get(0).getId(), book.getPages().get(1).getId());
+		mockMvc.perform(replaceBookRequest(book.getId(), invalidImageIndexMetadata)
+					.file(imagePart("images", "replacement.png")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 	}
 
 	@Test
@@ -164,6 +265,16 @@ class BookApiIntegrationTests {
 			return servletRequest;
 		});
 		return request.file(imagePart("image", "replacement.png"));
+	}
+
+	private MockMultipartHttpServletRequestBuilder replaceBookRequest(UUID bookId, String metadata) {
+		MockMultipartHttpServletRequestBuilder request = MockMvcRequestBuilders
+				.multipart("/api/books/{bookId}", bookId);
+		request.with(servletRequest -> {
+			servletRequest.setMethod("PUT");
+			return servletRequest;
+		});
+		return request.file(jsonPart("metadata", metadata));
 	}
 
 	private org.springframework.mock.web.MockMultipartFile jsonPart(String name, String json) {
