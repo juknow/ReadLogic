@@ -4,8 +4,11 @@ import type { Book } from '@/features/books/model/book'
 
 import {
   createBookOnServer,
+  getBookById,
   getBookSummaries,
   replaceBookOnServer,
+  retryPageOcr,
+  savePageExtractedText,
 } from './bookApiRepository'
 
 const pageResponse = {
@@ -158,5 +161,53 @@ describe('bookApiRepository', () => {
       title: '책 제목',
     })
     expect(formData.getAll('images')).toEqual([replacement, addition])
+  })
+
+  it('확장된 OCR 응답을 매핑하고 재시도와 본문 저장 요청을 전송한다', async () => {
+    const processingPage = {
+      ...pageResponse,
+      ocrEngine: 'paddleocr',
+      ocrModel: 'PP-OCRv5-korean',
+      ocrStatus: 'processing' as const,
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ...bookResponse, pages: [processingPage] }))
+      .mockResolvedValueOnce(jsonResponse({ ...processingPage, ocrStatus: 'pending' }, 202))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...processingPage,
+          extractedText: '교정한 본문',
+          ocrStatus: 'ready',
+          textSource: 'manual',
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const book = await getBookById('book-1')
+    expect(book?.pages[0]).toMatchObject({
+      imageUrl: 'http://localhost:8080/api/books/book-1/pages/page-1/image',
+      ocrEngine: 'paddleocr',
+      ocrModel: 'PP-OCRv5-korean',
+      ocrStatus: 'processing',
+    })
+
+    await retryPageOcr('book-1', 'page-1')
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/api/books/book-1/pages/page-1/ocr',
+      expect.objectContaining({ method: 'POST' }),
+    )
+
+    const savedPage = await savePageExtractedText('book-1', 'page-1', '교정한 본문')
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://localhost:8080/api/books/book-1/pages/page-1',
+      expect.objectContaining({
+        body: JSON.stringify({ extractedText: '교정한 본문' }),
+        method: 'PATCH',
+      }),
+    )
+    expect(savedPage).toMatchObject({ extractedText: '교정한 본문', textSource: 'manual' })
   })
 })
