@@ -9,7 +9,12 @@ import {
 import { Link, useNavigate } from 'react-router-dom'
 
 import { appPaths } from '@/app/router/paths'
-import { createBook } from '@/features/books/data/bookRepository'
+import { createBookOnServer } from '@/features/books/data/bookApiRepository'
+import {
+  ACCEPTED_BOOK_IMAGE_INPUT,
+  getBookImageValidationError,
+} from '@/features/books/model/bookImage'
+import { ApiError } from '@/shared/api/apiClient'
 
 import styles from './NewBookPage.module.css'
 
@@ -71,8 +76,9 @@ export function NewBookPage() {
     if (!fileList) return
 
     const selectedFiles = Array.from(fileList)
-    const imageFiles = selectedFiles.filter((file) =>
-      file.type.startsWith('image/'),
+    const invalidFile = selectedFiles.find(getBookImageValidationError)
+    const imageFiles = selectedFiles.filter(
+      (file) => getBookImageValidationError(file) === null,
     )
     const remainingSlots = MAX_PAGE_IMAGE_COUNT - pages.length
     const acceptedFiles = imageFiles.slice(0, remainingSlots)
@@ -101,8 +107,8 @@ export function NewBookPage() {
       setSaveError('')
     }
 
-    if (imageFiles.length !== selectedFiles.length) {
-      setUploadMessage('이미지 파일만 페이지로 등록할 수 있어요.')
+    if (invalidFile) {
+      setUploadMessage(getBookImageValidationError(invalidFile) ?? '')
     } else if (imageFiles.length > remainingSlots) {
       setUploadMessage(
         `한 번에 최대 ${MAX_PAGE_IMAGE_COUNT}페이지까지 등록할 수 있어요.`,
@@ -158,7 +164,7 @@ export function NewBookPage() {
     setSaveError('')
 
     try {
-      const book = await createBook({
+      const book = await createBookOnServer({
         author,
         pages: pages.map(({ file, pageNumber }) => ({
           file,
@@ -167,8 +173,12 @@ export function NewBookPage() {
         title: bookTitle,
       })
       await navigate(appPaths.book(book.id))
-    } catch {
-      setSaveError('책을 저장하지 못했습니다. 다시 시도해 주세요.')
+    } catch (error) {
+      setSaveError(
+        error instanceof ApiError
+          ? error.message
+          : '책을 저장하지 못했습니다. 다시 시도해 주세요.',
+      )
       setIsSubmitting(false)
     }
   }
@@ -300,7 +310,7 @@ export function NewBookPage() {
                 onDrop={handleDrop}
               >
                 <input
-                  accept="image/*"
+                  accept={ACCEPTED_BOOK_IMAGE_INPUT}
                   className={styles.fileInput}
                   multiple
                   onChange={handleFileChange}
@@ -313,7 +323,10 @@ export function NewBookPage() {
                   </svg>
                 </span>
                 <strong>페이지 이미지를 선택하세요</strong>
-                <span>한 이미지에 한 페이지만 담아주세요 · JPG, PNG, HEIC</span>
+                <span>
+                  한 이미지에 한 페이지만 담아주세요 · JPG, PNG, WebP · 장당 최대
+                  10MB
+                </span>
               </label>
 
               {uploadMessage && (
