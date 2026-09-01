@@ -13,6 +13,7 @@ import java.util.UUID;
 public record ReplaceBookRequest(
 		@NotBlank @Size(max = 255) String title,
 		@Size(max = 255) String author,
+		String defaultOcrLanguage,
 		@NotEmpty @Valid List<PageRequest> pages
 ) {
 	public record PageRequest(

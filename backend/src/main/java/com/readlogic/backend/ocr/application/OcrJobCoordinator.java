@@ -46,6 +46,7 @@ public class OcrJobCoordinator {
 				result.confidence(),
 				result.engine(),
 				result.model(),
+				result.document(),
 				completedAt,
 				OcrStatus.READY,
 				OcrStatus.PROCESSING,
@@ -85,7 +86,8 @@ public class OcrJobCoordinator {
 				page.getOcrAttemptCount(),
 				page.getObjectKey(),
 				page.getOriginalFileName(),
-				page.getMimeType()
+				page.getMimeType(),
+				page.getEffectiveOcrLanguage().apiValue()
 		);
 	}
 

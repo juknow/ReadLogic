@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface BookPageRepository extends JpaRepository<BookPage, UUID> {
@@ -41,6 +42,7 @@ public interface BookPageRepository extends JpaRepository<BookPage, UUID> {
 			    page.ocrConfidence = :confidence,
 			    page.ocrEngine = :engine,
 			    page.ocrModel = :model,
+			    page.ocrDocument = :document,
 			    page.ocrLastErrorCode = null,
 			    page.ocrLastErrorMessage = null,
 			    page.ocrCompletedAt = :completedAt,
@@ -58,6 +60,7 @@ public interface BookPageRepository extends JpaRepository<BookPage, UUID> {
 			@Param("confidence") BigDecimal confidence,
 			@Param("engine") String engine,
 			@Param("model") String model,
+			@Param("document") Map<String, Object> document,
 			@Param("completedAt") Instant completedAt,
 			@Param("readyStatus") OcrStatus readyStatus,
 			@Param("processingStatus") OcrStatus processingStatus,

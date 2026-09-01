@@ -11,6 +11,7 @@ import java.util.List;
 public record CreateBookRequest(
 		@NotBlank @Size(max = 255) String title,
 		@Size(max = 255) String author,
+		String defaultOcrLanguage,
 		@NotEmpty @Valid List<CreatePageRequest> pages
 ) {
 	public record CreatePageRequest(@Positive int pageNumber) {

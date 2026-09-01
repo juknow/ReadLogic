@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface OcrClient {
 
-	OcrResult recognize(OcrImage image, UUID requestId);
+	OcrResult recognize(OcrImage image, UUID requestId, String language);
 }

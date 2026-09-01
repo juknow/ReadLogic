@@ -20,7 +20,7 @@ public record BookSummaryResponse(
 	static BookSummaryResponse from(Book book) {
 		BookPageResponse coverPage = book.getPages().stream()
 				.min(Comparator.comparingInt(page -> page.getPageNumber()))
-				.map(BookPageResponse::from)
+				.map(BookPageResponse::summaryFrom)
 				.orElse(null);
 		Integer firstPageNumber = book.getPages().stream()
 				.mapToInt(page -> page.getPageNumber())

@@ -4,6 +4,7 @@ import com.readlogic.backend.book.application.BookApplicationService;
 import com.readlogic.backend.book.application.BookApplicationService.CreateBookCommand;
 import com.readlogic.backend.book.application.BookApplicationService.CreatePageCommand;
 import com.readlogic.backend.book.application.BookApplicationService.PageImageUpload;
+import com.readlogic.backend.book.domain.OcrLanguage;
 import com.readlogic.backend.storage.PageImageStorage;
 import com.readlogic.backend.common.error.InvalidRequestException;
 import jakarta.validation.Valid;
@@ -46,6 +47,7 @@ public class BookController {
 		CreateBookCommand command = new CreateBookCommand(
 				request.title(),
 				request.author(),
+				toOcrLanguage(request.defaultOcrLanguage()),
 				request.pages().stream()
 						.map(page -> new CreatePageCommand(page.pageNumber()))
 						.toList()
@@ -78,7 +80,12 @@ public class BookController {
 
 	@PatchMapping("/{bookId}")
 	public BookResponse updateBook(@PathVariable UUID bookId, @RequestBody @Valid UpdateBookRequest request) {
-		return BookResponse.from(bookService.updateBook(bookId, request.title(), request.author()));
+		return BookResponse.from(bookService.updateBook(
+				bookId,
+				request.title(),
+				request.author(),
+				toOptionalOcrLanguage(request.defaultOcrLanguage())
+		));
 	}
 
 	@PutMapping(path = "/{bookId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -93,6 +100,7 @@ public class BookController {
 		BookApplicationService.ReplaceBookCommand command = new BookApplicationService.ReplaceBookCommand(
 				request.title(),
 				request.author(),
+				toOptionalOcrLanguage(request.defaultOcrLanguage()),
 				request.pages().stream()
 						.map(page -> new BookApplicationService.ReplacePageCommand(
 								page.id(),
@@ -145,9 +153,18 @@ public class BookController {
 	@PostMapping("/{bookId}/pages/{pageId}/ocr")
 	public ResponseEntity<BookPageResponse> requestPageOcr(
 			@PathVariable UUID bookId,
-			@PathVariable UUID pageId
+			@PathVariable UUID pageId,
+			@RequestBody(required = false) RequestPageOcrRequest request
 	) {
-		BookPageResponse response = BookPageResponse.from(bookService.requestPageOcr(bookId, pageId));
+		BookPageResponse response = BookPageResponse.from(
+				request == null
+						? bookService.requestPageOcr(bookId, pageId)
+						: bookService.requestPageOcr(
+								bookId,
+								pageId,
+								request.language() == null ? null : toOcrLanguage(request.language())
+						)
+		);
 		return ResponseEntity.accepted().body(response);
 	}
 
@@ -164,5 +181,17 @@ public class BookController {
 		} catch (java.io.IOException exception) {
 			throw new InvalidRequestException("업로드한 이미지를 읽을 수 없습니다.", exception);
 		}
+	}
+
+	private OcrLanguage toOcrLanguage(String value) {
+		try {
+			return OcrLanguage.fromApiValue(value);
+		} catch (IllegalArgumentException exception) {
+			throw new InvalidRequestException(exception.getMessage(), exception);
+		}
+	}
+
+	private OcrLanguage toOptionalOcrLanguage(String value) {
+		return value == null ? null : toOcrLanguage(value);
 	}
 }
