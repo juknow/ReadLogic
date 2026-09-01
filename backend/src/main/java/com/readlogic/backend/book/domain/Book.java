@@ -68,11 +68,17 @@ public class Book {
 	public void addPage(BookPage page) {
 		pages.add(page);
 		page.attachTo(this);
+		touch();
 	}
 
 	public void removePage(BookPage page) {
 		pages.remove(page);
 		page.detach();
+		touch();
+	}
+
+	public void touch() {
+		updatedAt = Instant.now();
 	}
 
 	public UUID getId() {
@@ -99,4 +105,3 @@ public class Book {
 		return updatedAt;
 	}
 }
-

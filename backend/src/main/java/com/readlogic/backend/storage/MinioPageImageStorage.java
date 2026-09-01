@@ -28,7 +28,7 @@ public class MinioPageImageStorage implements PageImageStorage {
 
 	@Override
 	public String store(UUID bookId, UUID pageId, String contentType, long size, InputStream content) {
-		String objectKey = "books/%s/pages/%s".formatted(bookId, pageId);
+		String objectKey = "books/%s/pages/%s/%s".formatted(bookId, pageId, UUID.randomUUID());
 		try {
 			ensureBucket();
 			minioClient.putObject(PutObjectArgs.builder()
@@ -86,4 +86,3 @@ public class MinioPageImageStorage implements PageImageStorage {
 		bucketReady = true;
 	}
 }
-

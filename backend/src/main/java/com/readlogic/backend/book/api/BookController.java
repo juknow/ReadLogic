@@ -10,8 +10,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -67,6 +71,55 @@ public class BookController {
 				.header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
 				.contentType(MediaType.parseMediaType(image.contentType()))
 				.body(image.content());
+	}
+
+	@PatchMapping("/{bookId}")
+	public BookResponse updateBook(@PathVariable UUID bookId, @RequestBody @Valid UpdateBookRequest request) {
+		return BookResponse.from(bookService.updateBook(bookId, request.title(), request.author()));
+	}
+
+	@DeleteMapping("/{bookId}")
+	public ResponseEntity<Void> deleteBook(@PathVariable UUID bookId) {
+		bookService.deleteBook(bookId);
+		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping(path = "/{bookId}/pages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<BookPageResponse> addPage(
+			@PathVariable UUID bookId,
+			@RequestPart("metadata") @Valid AddBookPageRequest request,
+			@RequestPart("image") MultipartFile image
+	) {
+		BookPageResponse response = BookPageResponse.from(
+				bookService.addPage(bookId, request.pageNumber(), toUpload(image))
+		);
+		return ResponseEntity.created(URI.create(response.imageUrl())).body(response);
+	}
+
+	@PatchMapping("/{bookId}/pages/{pageId}")
+	public BookPageResponse updatePage(
+			@PathVariable UUID bookId,
+			@PathVariable UUID pageId,
+			@RequestBody @Valid UpdateBookPageRequest request
+	) {
+		return BookPageResponse.from(
+				bookService.updatePage(bookId, pageId, request.pageNumber(), request.extractedText())
+		);
+	}
+
+	@PutMapping(path = "/{bookId}/pages/{pageId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public BookPageResponse replacePageImage(
+			@PathVariable UUID bookId,
+			@PathVariable UUID pageId,
+			@RequestPart("image") MultipartFile image
+	) {
+		return BookPageResponse.from(bookService.replacePageImage(bookId, pageId, toUpload(image)));
+	}
+
+	@DeleteMapping("/{bookId}/pages/{pageId}")
+	public ResponseEntity<Void> deletePage(@PathVariable UUID bookId, @PathVariable UUID pageId) {
+		bookService.deletePage(bookId, pageId);
+		return ResponseEntity.noContent().build();
 	}
 
 	private PageImageUpload toUpload(MultipartFile file) {
