@@ -6,25 +6,18 @@ from typing import Any, Protocol
 import numpy as np
 
 from readlogic_ocr.errors import OcrInferenceError
+from readlogic_ocr.models import RecognizedRegion
 
 
 @dataclass(frozen=True)
 class EngineResult:
     confidence: float | None
     text: str
+    regions: tuple[RecognizedRegion, ...] = ()
 
 
 class OcrEngine(Protocol):
     def recognize(self, image: np.ndarray) -> EngineResult: ...
-
-
-@dataclass(frozen=True)
-class RecognizedRegion:
-    confidence: float
-    height: float
-    text: str
-    x: float
-    y: float
 
 
 class PaddleOcrEngine:
@@ -38,14 +31,27 @@ class PaddleOcrEngine:
             use_doc_unwarping=True,
             use_textline_orientation=True,
         )
+        self._language = "ko"
+        self._recognition_model = "korean_PP-OCRv5_mobile_rec"
 
     def recognize(self, image: np.ndarray) -> EngineResult:
         try:
             results = self._pipeline.predict(image)
-            regions = list(_read_regions(results))
+            regions = list(
+                _read_regions(
+                    results,
+                    language=getattr(self, "_language", "ko"),
+                    model=getattr(
+                        self,
+                        "_recognition_model",
+                        "korean_PP-OCRv5_mobile_rec",
+                    ),
+                )
+            )
             return EngineResult(
                 confidence=_average_confidence(regions),
                 text=_assemble_text(regions),
+                regions=tuple(regions),
             )
         except OcrInferenceError:
             raise
@@ -53,28 +59,43 @@ class PaddleOcrEngine:
             raise OcrInferenceError() from exception
 
 
-def _read_regions(results: Iterable[Any]) -> Iterable[RecognizedRegion]:
+def _read_regions(
+    results: Iterable[Any],
+    language: str = "ko",
+    model: str = "korean_PP-OCRv5_mobile_rec",
+) -> Iterable[RecognizedRegion]:
     for result in results:
         texts = list(_get_result_value(result, "rec_texts"))
         scores = list(_get_result_value(result, "rec_scores"))
         polygons = list(_get_result_value(result, "rec_polys"))
+        detection_scores = _get_optional_result_value(result, "dt_scores")
         if not (len(texts) == len(scores) == len(polygons)):
             raise OcrInferenceError()
-        for text, score, polygon in zip(texts, scores, polygons, strict=True):
+        if detection_scores is not None and len(detection_scores) != len(texts):
+            raise OcrInferenceError()
+        normalized_detection_scores = detection_scores or [None] * len(texts)
+        for text, score, polygon, detection_score in zip(
+            texts,
+            scores,
+            polygons,
+            normalized_detection_scores,
+            strict=True,
+        ):
             normalized_text = str(text).strip()
             if not normalized_text:
                 continue
             points = np.asarray(polygon, dtype=float)
             if points.ndim != 2 or points.shape[0] < 2 or points.shape[1] != 2:
                 raise OcrInferenceError()
-            xs = points[:, 0]
-            ys = points[:, 1]
             yield RecognizedRegion(
-                confidence=max(0.0, min(1.0, float(score))),
-                height=max(1.0, float(ys.max() - ys.min())),
                 text=normalized_text,
-                x=float(xs.min()),
-                y=float((ys.min() + ys.max()) / 2),
+                recognition_confidence=_clamp_confidence(score),
+                detection_confidence=(
+                    None if detection_score is None else _clamp_confidence(detection_score)
+                ),
+                polygon=tuple((float(point[0]), float(point[1])) for point in points),
+                language=language,
+                model=model,
             )
 
 
@@ -86,6 +107,25 @@ def _get_result_value(result: Any, key: str) -> list[Any]:
     if isinstance(value, (Sequence, np.ndarray)):
         return list(value)
     raise OcrInferenceError()
+
+
+def _get_optional_result_value(result: Any, key: str) -> list[Any] | None:
+    try:
+        value = result[key]
+    except (KeyError, TypeError):
+        return None
+    if value is None:
+        return None
+    if isinstance(value, (Sequence, np.ndarray)):
+        return list(value)
+    raise OcrInferenceError()
+
+
+def _clamp_confidence(value: Any) -> float:
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError) as exception:
+        raise OcrInferenceError() from exception
 
 
 def _average_confidence(regions: Sequence[RecognizedRegion]) -> float | None:
