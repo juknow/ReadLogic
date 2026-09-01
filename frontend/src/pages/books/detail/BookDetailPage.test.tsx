@@ -86,13 +86,16 @@ function captureIntervals() {
 async function runInterval(callback: (() => void) | undefined) {
   await act(async () => {
     callback?.()
-    await Promise.resolve()
-    await Promise.resolve()
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
   })
 }
 
 beforeEach(() => {
   Object.values(apiMocks).forEach((mock) => mock.mockReset())
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value: 'visible',
+  })
 })
 
 afterEach(() => {
