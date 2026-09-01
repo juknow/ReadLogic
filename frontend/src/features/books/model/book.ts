@@ -5,10 +5,12 @@ export type BookPage = {
   extractedText: string
   fileName: string
   id: string
-  image: Blob
+  imageUrl: string
+  isNew?: boolean
   mimeType: string
   ocrStatus: BookPageOcrStatus
   pageNumber: number
+  pendingImage?: File
   updatedAt: string
 }
 
@@ -17,6 +19,18 @@ export type Book = {
   createdAt: string
   id: string
   pages: BookPage[]
+  title: string
+  updatedAt: string
+}
+
+export type BookSummary = {
+  author: string
+  coverPage: BookPage | null
+  createdAt: string
+  firstPageNumber: number | null
+  id: string
+  lastPageNumber: number | null
+  pageCount: number
   title: string
   updatedAt: string
 }
@@ -40,10 +54,12 @@ export function createBookPage(file: File, pageNumber: number): BookPage {
     extractedText: '',
     fileName: file.name,
     id: crypto.randomUUID(),
-    image: file,
+    imageUrl: '',
+    isNew: true,
     mimeType: file.type,
     ocrStatus: 'pending',
     pageNumber,
+    pendingImage: file,
     updatedAt: timestamp,
   }
 }

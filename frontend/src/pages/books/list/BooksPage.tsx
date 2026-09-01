@@ -29,7 +29,8 @@ function getPageSummary(book: Book) {
 }
 
 function BookCard({ book }: { book: Book }) {
-  const coverUrl = useObjectUrl(book.pages[0]?.image)
+  const pendingCoverUrl = useObjectUrl(book.pages[0]?.pendingImage)
+  const coverUrl = pendingCoverUrl || book.pages[0]?.imageUrl
 
   return (
     <li>

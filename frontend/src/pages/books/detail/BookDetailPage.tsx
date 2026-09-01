@@ -42,7 +42,8 @@ function PageCard({
   onReplace,
   page,
 }: PageCardProps) {
-  const imageUrl = useObjectUrl(page.image)
+  const pendingImageUrl = useObjectUrl(page.pendingImage)
+  const imageUrl = pendingImageUrl || page.imageUrl
 
   function handleReplace(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -183,9 +184,9 @@ export function BookDetailPage() {
                     ...page,
                     extractedText: '',
                     fileName: file.name,
-                    image: file,
                     mimeType: file.type,
                     ocrStatus: 'pending',
+                    pendingImage: file,
                     updatedAt: timestamp,
                   }
                 : page,
