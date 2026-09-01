@@ -54,8 +54,8 @@ public class BookPage {
 	protected BookPage() {
 	}
 
-	public BookPage(int pageNumber, String originalFileName, String mimeType, String objectKey) {
-		this.id = UUID.randomUUID();
+	public BookPage(UUID id, int pageNumber, String originalFileName, String mimeType, String objectKey) {
+		this.id = id;
 		this.pageNumber = pageNumber;
 		this.originalFileName = originalFileName;
 		this.mimeType = mimeType;
@@ -142,4 +142,3 @@ public class BookPage {
 		return updatedAt;
 	}
 }
-
