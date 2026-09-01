@@ -1,4 +1,5 @@
-export type BookPageOcrStatus = 'failed' | 'pending' | 'ready'
+export type BookPageOcrStatus = 'failed' | 'pending' | 'processing' | 'ready'
+export type BookPageTextSource = 'manual' | 'none' | 'ocr'
 
 export type BookPage = {
   createdAt: string
@@ -8,9 +9,17 @@ export type BookPage = {
   imageUrl: string
   isNew?: boolean
   mimeType: string
+  ocrCompletedAt: string | null
+  ocrConfidence: number | null
+  ocrEngine: string | null
+  ocrErrorCode: string | null
+  ocrErrorMessage: string | null
+  ocrModel: string | null
+  ocrRequestedAt: string | null
   ocrStatus: BookPageOcrStatus
   pageNumber: number
   pendingImage?: File
+  textSource: BookPageTextSource
   updatedAt: string
 }
 
@@ -57,9 +66,17 @@ export function createBookPage(file: File, pageNumber: number): BookPage {
     imageUrl: '',
     isNew: true,
     mimeType: file.type,
+    ocrCompletedAt: null,
+    ocrConfidence: null,
+    ocrEngine: null,
+    ocrErrorCode: null,
+    ocrErrorMessage: null,
+    ocrModel: null,
+    ocrRequestedAt: timestamp,
     ocrStatus: 'pending',
     pageNumber,
     pendingImage: file,
+    textSource: 'none',
     updatedAt: timestamp,
   }
 }

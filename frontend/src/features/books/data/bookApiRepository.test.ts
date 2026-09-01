@@ -15,8 +15,16 @@ const pageResponse = {
   id: 'page-1',
   imageUrl: '/api/books/book-1/pages/page-1/image',
   mimeType: 'image/png',
+  ocrCompletedAt: null,
+  ocrConfidence: null,
+  ocrEngine: null,
+  ocrErrorCode: null,
+  ocrErrorMessage: null,
+  ocrModel: null,
+  ocrRequestedAt: '2026-09-01T01:00:00Z',
   ocrStatus: 'pending',
   pageNumber: 10,
+  textSource: 'none',
   updatedAt: '2026-09-01T01:00:00Z',
 } as const
 

@@ -3,6 +3,7 @@ import type {
   Book,
   BookPage,
   BookPageOcrStatus,
+  BookPageTextSource,
   BookSummary,
   CreateBookInput,
 } from '@/features/books/model/book'
@@ -14,8 +15,16 @@ type BookPageResponse = {
   id: string
   imageUrl: string
   mimeType: string
+  ocrCompletedAt: string | null
+  ocrConfidence: number | null
+  ocrEngine: string | null
+  ocrErrorCode: string | null
+  ocrErrorMessage: string | null
+  ocrModel: string | null
+  ocrRequestedAt: string | null
   ocrStatus: BookPageOcrStatus
   pageNumber: number
+  textSource: BookPageTextSource
   updatedAt: string
 }
 
@@ -113,6 +122,32 @@ export async function replaceBookOnServer(book: Book) {
       body: formData,
       method: 'PUT',
     }),
+  )
+}
+
+export async function retryPageOcr(bookId: string, pageId: string) {
+  return mapBookPage(
+    await requestApi<BookPageResponse>(
+      `/api/books/${bookId}/pages/${pageId}/ocr`,
+      { method: 'POST' },
+    ),
+  )
+}
+
+export async function savePageExtractedText(
+  bookId: string,
+  pageId: string,
+  extractedText: string,
+) {
+  return mapBookPage(
+    await requestApi<BookPageResponse>(
+      `/api/books/${bookId}/pages/${pageId}`,
+      {
+        body: JSON.stringify({ extractedText }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+      },
+    ),
   )
 }
 
