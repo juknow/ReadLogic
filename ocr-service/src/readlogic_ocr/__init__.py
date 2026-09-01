@@ -1,0 +1,1 @@
+"""ReadLogic internal OCR service."""
