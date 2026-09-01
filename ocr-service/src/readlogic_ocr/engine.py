@@ -14,6 +14,7 @@ from readlogic_ocr.preprocessing import (
     identity_preprocessing,
 )
 from readlogic_ocr.recognition import (
+    LanguageRouter,
     PaddleTextLineOrienter,
     RecognitionRegistry,
     TextLineOrienter,
@@ -51,6 +52,7 @@ class PaddleOcrEngine:
         self._detector = detector or PaddleTextDetector()
         self._orienter = orienter or PaddleTextLineOrienter()
         self._registry = registry or RecognitionRegistry()
+        self._router = LanguageRouter(self._registry)
 
     def recognize(self, image: np.ndarray, language: str = "ko") -> EngineResult:
         try:
@@ -61,16 +63,14 @@ class PaddleOcrEngine:
                 if hasattr(self, "_preprocessor")
                 else identity_preprocessing(image)
             )
-            if language == "auto":
-                language = "ko"
             detected_regions = self._detector.detect(preprocessed.image)
             crops = tuple(
                 perspective_crop(preprocessed.image, region.polygon)
                 for region in detected_regions
             )
             oriented_crops = self._orienter.orient(crops)
-            candidates = self._registry.recognize(oriented_crops, language)
-            if len(candidates) != len(detected_regions):
+            routing = self._router.recognize(oriented_crops, language)
+            if len(routing.candidates) != len(detected_regions):
                 raise OcrInferenceError()
             regions = [
                 RecognizedRegion(
@@ -83,29 +83,24 @@ class PaddleOcrEngine:
                 )
                 for detected, candidate in zip(
                     detected_regions,
-                    candidates,
+                    routing.candidates,
                     strict=True,
                 )
                 if candidate.text
             ]
-            primary_model = (
-                regions[0].model
-                if regions
-                else self._registry.loaded_model_names[-1]
-            )
             return EngineResult(
                 confidence=_average_confidence(regions),
                 text=_assemble_text(regions),
                 regions=tuple(regions),
                 correction=preprocessed.correction,
-                warnings=preprocessed.warnings,
+                warnings=preprocessed.warnings + routing.warnings,
                 image_size=(
                     int(preprocessed.image.shape[1]),
                     int(preprocessed.image.shape[0]),
                 ),
-                requested_language=language,
-                detected_language=language if regions else "und",
-                primary_model=primary_model,
+                requested_language=routing.requested_language,
+                detected_language=routing.detected_language,
+                primary_model=routing.primary_model,
             )
         except OcrInferenceError:
             raise

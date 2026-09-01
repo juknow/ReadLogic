@@ -35,8 +35,9 @@ class FakeRecognizer:
         language: str,
         model: str,
     ) -> tuple[RecognitionCandidate, ...]:
+        texts = {"en": "English text", "ja": "日本語の文", "ko": "한국어 문장", "zh": "中文句子"}
         return tuple(
-            RecognitionCandidate(f"{language} text", 0.91, language, model)
+            RecognitionCandidate(texts[language], 0.91, language, model)
             for _ in images
         )
 
@@ -52,7 +53,7 @@ def test_routes_explicit_language_after_shared_detection() -> None:
 
     result = engine.recognize(np.zeros((50, 100, 3), dtype=np.uint8), "ja")
 
-    assert result.text == "ja text"
+    assert result.text == "日本語の文"
     assert result.requested_language == "ja"
     assert result.detected_language == "ja"
     assert result.regions[0].detection_confidence == 0.98
