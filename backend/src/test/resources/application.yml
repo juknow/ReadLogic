@@ -6,3 +6,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+
+app:
+  storage:
+    minio:
+      endpoint: http://localhost:9000
+      access-key: test-access-key
+      secret-key: test-secret-key
+      bucket: readlogic-test-pages
