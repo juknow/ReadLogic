@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'backend/**'
+      - 'ocr-service/**'
       - 'compose.yaml'
       - '.env.example'
       - '.github/workflows/backend-ci.yml'
@@ -13,6 +14,7 @@ on:
       - main
     paths:
       - 'backend/**'
+      - 'ocr-service/**'
       - 'compose.yaml'
       - '.env.example'
       - '.github/workflows/backend-ci.yml'
@@ -51,3 +53,39 @@ jobs:
 
       - name: Test and build executable jar
         run: ./gradlew test bootJar
+
+  ocr-quality:
+    name: OCR test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: ocr-service/uv.lock
+
+      - name: Install Korean test font
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
+      - name: Install dependencies
+        working-directory: ocr-service
+        run: uv sync --frozen
+
+      - name: Check formatting and types
+        working-directory: ocr-service
+        run: uv run ruff check . && uv run mypy src
+
+      - name: Run OCR tests
+        working-directory: ocr-service
+        env:
+          OCR_TEST_FONT_PATH: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+          RUN_OCR_MODEL_TESTS: '1'
+        run: uv run pytest
+
+      - name: Build OCR image
+        run: docker build --tag readlogic-ocr-service ./ocr-service

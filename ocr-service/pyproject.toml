@@ -25,6 +25,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+markers = ["model: runs the real PaddleOCR model and may download model files"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 
