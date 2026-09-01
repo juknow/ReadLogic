@@ -49,12 +49,12 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=2)",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=2)",
         ]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 180s
 
   backend:
     build:

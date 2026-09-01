@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PADDLE_HOME=/models/paddle \
-    PADDLEX_HOME=/models/paddlex
+    PADDLE_PDX_CACHE_HOME=/models/paddlex
 
 WORKDIR /app
 

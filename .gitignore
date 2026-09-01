@@ -5,6 +5,7 @@ frontend/dist/
 
 # Python / OCR
 ocr-service/.mypy_cache/
+ocr-service/.model-cache/
 ocr-service/.pytest_cache/
 ocr-service/.ruff_cache/
 ocr-service/.venv/
