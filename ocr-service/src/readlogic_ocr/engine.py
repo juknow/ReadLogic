@@ -6,7 +6,12 @@ from typing import Any, Protocol
 import numpy as np
 
 from readlogic_ocr.errors import OcrInferenceError
-from readlogic_ocr.models import RecognizedRegion
+from readlogic_ocr.models import CorrectionMetadata, OcrWarning, RecognizedRegion
+from readlogic_ocr.preprocessing import (
+    DocumentPreprocessor,
+    PaddleDocumentPreprocessor,
+    identity_preprocessing,
+)
 
 
 @dataclass(frozen=True)
@@ -14,6 +19,9 @@ class EngineResult:
     confidence: float | None
     text: str
     regions: tuple[RecognizedRegion, ...] = ()
+    correction: CorrectionMetadata = CorrectionMetadata()
+    warnings: tuple[OcrWarning, ...] = ()
+    image_size: tuple[int, int] = (0, 0)
 
 
 class OcrEngine(Protocol):
@@ -21,14 +29,15 @@ class OcrEngine(Protocol):
 
 
 class PaddleOcrEngine:
-    def __init__(self) -> None:
+    def __init__(self, preprocessor: DocumentPreprocessor | None = None) -> None:
         from paddleocr import PaddleOCR
 
+        self._preprocessor = preprocessor or PaddleDocumentPreprocessor()
         self._pipeline = PaddleOCR(
             lang="korean",
             ocr_version="PP-OCRv5",
-            use_doc_orientation_classify=True,
-            use_doc_unwarping=True,
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
             use_textline_orientation=True,
         )
         self._language = "ko"
@@ -36,7 +45,12 @@ class PaddleOcrEngine:
 
     def recognize(self, image: np.ndarray) -> EngineResult:
         try:
-            results = self._pipeline.predict(image)
+            preprocessed = (
+                self._preprocessor.correct(image)
+                if hasattr(self, "_preprocessor")
+                else identity_preprocessing(image)
+            )
+            results = self._pipeline.predict(preprocessed.image)
             regions = list(
                 _read_regions(
                     results,
@@ -52,6 +66,12 @@ class PaddleOcrEngine:
                 confidence=_average_confidence(regions),
                 text=_assemble_text(regions),
                 regions=tuple(regions),
+                correction=preprocessed.correction,
+                warnings=preprocessed.warnings,
+                image_size=(
+                    int(preprocessed.image.shape[1]),
+                    int(preprocessed.image.shape[0]),
+                ),
             )
         except OcrInferenceError:
             raise

@@ -59,6 +59,7 @@ def test_returns_empty_result_when_no_text_was_detected() -> None:
 
     assert result.text == ""
     assert result.confidence is None
+    assert result.image_size == (20, 20)
 
 
 def test_rejects_malformed_model_result() -> None:

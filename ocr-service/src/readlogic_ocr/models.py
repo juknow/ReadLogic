@@ -8,6 +8,21 @@ BoundingBox = tuple[float, float, float, float]
 
 
 @dataclass(frozen=True)
+class OcrWarning:
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class CorrectionMetadata:
+    exif_applied: bool = True
+    orientation_applied: bool = False
+    rotation_degrees: int = 0
+    unwarping_applied: bool = False
+    fallback_used: bool = False
+
+
+@dataclass(frozen=True)
 class RecognizedRegion:
     text: str
     recognition_confidence: float
