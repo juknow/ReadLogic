@@ -7,13 +7,21 @@ import {
 import { Link, useParams } from 'react-router-dom'
 
 import { appPaths } from '@/app/router/paths'
-import { getBook, saveBook } from '@/features/books/data/bookRepository'
+import {
+  getBookById,
+  replaceBookOnServer,
+} from '@/features/books/data/bookApiRepository'
 import { useObjectUrl } from '@/features/books/hooks/useObjectUrl'
 import {
   createBookPage,
   type Book,
   type BookPage,
 } from '@/features/books/model/book'
+import {
+  ACCEPTED_BOOK_IMAGE_INPUT,
+  getBookImageValidationError,
+} from '@/features/books/model/bookImage'
+import { ApiError } from '@/shared/api/apiClient'
 
 import styles from './BookDetailPage.module.css'
 
@@ -82,7 +90,11 @@ function PageCard({
         <p className={styles.ocrStatus}>{getOcrStatusLabel(page)}</p>
         {isEditing && (
           <label className={styles.replaceAction}>
-            <input accept="image/*" onChange={handleReplace} type="file" />
+            <input
+              accept={ACCEPTED_BOOK_IMAGE_INPUT}
+              onChange={handleReplace}
+              type="file"
+            />
             이미지 교체
           </label>
         )}
@@ -107,15 +119,19 @@ export function BookDetailPage() {
   useEffect(() => {
     let isActive = true
 
-    void getBook(bookId)
+    void getBookById(bookId)
       .then((storedBook) => {
         if (!isActive) return
         setBook(storedBook)
         setDraftBook(storedBook)
       })
-      .catch(() => {
+      .catch((error) => {
         if (isActive) {
-          setLoadError('책을 불러오지 못했습니다. 다시 시도해 주세요.')
+          setLoadError(
+            error instanceof ApiError
+              ? error.message
+              : '책을 불러오지 못했습니다. 다시 시도해 주세요.',
+          )
         }
       })
 
@@ -172,7 +188,14 @@ export function BookDetailPage() {
   }
 
   function replacePageImage(pageId: string, file: File) {
+    const validationError = getBookImageValidationError(file)
+    if (validationError) {
+      setSaveError(validationError)
+      return
+    }
+
     const timestamp = new Date().toISOString()
+    setSaveError('')
 
     setDraftBook((currentBook) =>
       currentBook
@@ -212,6 +235,11 @@ export function BookDetailPage() {
       setAddPageMessage('추가할 페이지 이미지를 선택해 주세요.')
       return
     }
+    const validationError = getBookImageValidationError(newPageFile)
+    if (validationError) {
+      setAddPageMessage(validationError)
+      return
+    }
 
     setDraftBook({
       ...draftBook,
@@ -230,7 +258,7 @@ export function BookDetailPage() {
     setSaveError('')
 
     try {
-      const savedBook = await saveBook({
+      const savedBook = await replaceBookOnServer({
         ...draftBook,
         author: draftBook.author.trim(),
         title: draftBook.title.trim(),
@@ -240,8 +268,12 @@ export function BookDetailPage() {
       setIsEditing(false)
       setAddPageMessage('')
       setStatusMessage('책과 페이지 변경사항을 저장했습니다.')
-    } catch {
-      setSaveError('변경사항을 저장하지 못했습니다. 다시 시도해 주세요.')
+    } catch (error) {
+      const reason =
+        error instanceof ApiError
+          ? error.message
+          : '변경사항을 저장하지 못했습니다.'
+      setSaveError(`${reason} 초안은 유지되며 서버 데이터는 변경되지 않았습니다.`)
     } finally {
       setIsSaving(false)
     }
@@ -392,10 +424,15 @@ export function BookDetailPage() {
                 <span>페이지 이미지</span>
                 <div>
                   <input
-                    accept="image/*"
+                    accept={ACCEPTED_BOOK_IMAGE_INPUT}
                     onChange={(event) => {
-                      setNewPageFile(event.target.files?.[0] ?? null)
-                      setAddPageMessage('')
+                      const file = event.target.files?.[0] ?? null
+                      const validationError = file
+                        ? getBookImageValidationError(file)
+                        : null
+                      setNewPageFile(validationError ? null : file)
+                      setAddPageMessage(validationError ?? '')
+                      if (validationError) event.target.value = ''
                     }}
                     type="file"
                   />
