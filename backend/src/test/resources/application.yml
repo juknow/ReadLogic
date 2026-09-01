@@ -8,6 +8,15 @@ spring:
       ddl-auto: validate
 
 app:
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+  upload:
+    max-image-size-bytes: 10485760
+    allowed-content-types:
+      - image/jpeg
+      - image/png
+      - image/webp
   storage:
     minio:
       endpoint: http://localhost:9000

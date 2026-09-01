@@ -3,6 +3,9 @@ package com.readlogic.backend.book.application;
 import com.readlogic.backend.book.domain.Book;
 import com.readlogic.backend.book.domain.BookPage;
 import com.readlogic.backend.book.domain.BookRepository;
+import com.readlogic.backend.common.error.DuplicateResourceException;
+import com.readlogic.backend.common.error.InvalidRequestException;
+import com.readlogic.backend.common.error.ResourceNotFoundException;
 import com.readlogic.backend.storage.PageImageStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +14,6 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -28,7 +30,7 @@ public class BookApplicationService {
 	@Transactional
 	public Book createBook(CreateBookCommand command, List<PageImageUpload> images) {
 		if (command.pages().size() != images.size()) {
-			throw new IllegalArgumentException("페이지 정보와 이미지 개수가 일치하지 않습니다.");
+			throw new InvalidRequestException("페이지 정보와 이미지 개수가 일치하지 않습니다.");
 		}
 		ensureUniquePageNumbers(command.pages().stream().map(CreatePageCommand::pageNumber).toList());
 
@@ -170,19 +172,19 @@ public class BookApplicationService {
 
 	private Book getBookWithPages(UUID bookId) {
 		return bookRepository.findWithPagesById(bookId)
-				.orElseThrow(() -> new NoSuchElementException("책을 찾을 수 없습니다."));
+				.orElseThrow(() -> new ResourceNotFoundException("책을 찾을 수 없습니다."));
 	}
 
 	private BookPage findPage(Book book, UUID pageId) {
 		return book.getPages().stream()
 				.filter(page -> page.getId().equals(pageId))
 				.findFirst()
-				.orElseThrow(() -> new NoSuchElementException("페이지를 찾을 수 없습니다."));
+				.orElseThrow(() -> new ResourceNotFoundException("페이지를 찾을 수 없습니다."));
 	}
 
 	private void ensureUniquePageNumbers(List<Integer> pageNumbers) {
 		if (new HashSet<>(pageNumbers).size() != pageNumbers.size()) {
-			throw new IllegalArgumentException("한 책에서 페이지 번호는 중복될 수 없습니다.");
+			throw new DuplicateResourceException("한 책에서 페이지 번호는 중복될 수 없습니다.");
 		}
 	}
 
@@ -190,7 +192,7 @@ public class BookApplicationService {
 		boolean duplicate = book.getPages().stream()
 				.anyMatch(page -> page.getPageNumber() == pageNumber && !page.getId().equals(ignoredPageId));
 		if (duplicate) {
-			throw new IllegalArgumentException("한 책에서 페이지 번호는 중복될 수 없습니다.");
+			throw new DuplicateResourceException("한 책에서 페이지 번호는 중복될 수 없습니다.");
 		}
 	}
 

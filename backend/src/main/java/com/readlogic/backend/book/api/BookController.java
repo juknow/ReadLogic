@@ -5,6 +5,7 @@ import com.readlogic.backend.book.application.BookApplicationService.CreateBookC
 import com.readlogic.backend.book.application.BookApplicationService.CreatePageCommand;
 import com.readlogic.backend.book.application.BookApplicationService.PageImageUpload;
 import com.readlogic.backend.storage.PageImageStorage;
+import com.readlogic.backend.common.error.InvalidRequestException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,9 +31,11 @@ import java.util.UUID;
 public class BookController {
 
 	private final BookApplicationService bookService;
+	private final ImageUploadValidator imageValidator;
 
-	public BookController(BookApplicationService bookService) {
+	public BookController(BookApplicationService bookService, ImageUploadValidator imageValidator) {
 		this.bookService = bookService;
+		this.imageValidator = imageValidator;
 	}
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -123,10 +126,11 @@ public class BookController {
 	}
 
 	private PageImageUpload toUpload(MultipartFile file) {
+		imageValidator.validate(file);
 		try {
 			return new PageImageUpload(file.getOriginalFilename(), file.getContentType(), file.getBytes());
 		} catch (java.io.IOException exception) {
-			throw new IllegalArgumentException("업로드한 이미지를 읽을 수 없습니다.", exception);
+			throw new InvalidRequestException("업로드한 이미지를 읽을 수 없습니다.", exception);
 		}
 	}
 }
