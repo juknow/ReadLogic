@@ -7,17 +7,22 @@ import com.readlogic.backend.common.error.DuplicateResourceException;
 import com.readlogic.backend.common.error.InvalidRequestException;
 import com.readlogic.backend.common.error.ResourceNotFoundException;
 import com.readlogic.backend.storage.PageImageStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.ByteArrayInputStream;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class BookApplicationService {
+
+	private static final Logger log = LoggerFactory.getLogger(BookApplicationService.class);
 
 	private final BookRepository bookRepository;
 	private final PageImageStorage imageStorage;
@@ -35,33 +40,27 @@ public class BookApplicationService {
 		ensureUniquePageNumbers(command.pages().stream().map(CreatePageCommand::pageNumber).toList());
 
 		Book book = new Book(command.title().trim(), normalizeAuthor(command.author()));
-		List<String> storedObjectKeys = new ArrayList<>();
-		try {
-			for (int index = 0; index < command.pages().size(); index++) {
-				CreatePageCommand pageCommand = command.pages().get(index);
-				PageImageUpload image = images.get(index);
-				UUID pageId = UUID.randomUUID();
-				String objectKey = imageStorage.store(
-						book.getId(),
-						pageId,
-						image.contentType(),
-						image.content().length,
-						new ByteArrayInputStream(image.content())
-				);
-				storedObjectKeys.add(objectKey);
-				book.addPage(new BookPage(
-						pageId,
-						pageCommand.pageNumber(),
-						image.fileName(),
-						image.contentType(),
-						objectKey
-				));
-			}
-			return bookRepository.saveAndFlush(book);
-		} catch (RuntimeException exception) {
-			cleanupStoredImages(storedObjectKeys, exception);
-			throw exception;
+		for (int index = 0; index < command.pages().size(); index++) {
+			CreatePageCommand pageCommand = command.pages().get(index);
+			PageImageUpload image = images.get(index);
+			UUID pageId = UUID.randomUUID();
+			String objectKey = imageStorage.store(
+					book.getId(),
+					pageId,
+					image.contentType(),
+					image.content().length,
+					new ByteArrayInputStream(image.content())
+			);
+			deleteImageOnRollback(objectKey);
+			book.addPage(new BookPage(
+					pageId,
+					pageCommand.pageNumber(),
+					image.fileName(),
+					image.contentType(),
+					objectKey
+			));
 		}
+		return bookRepository.saveAndFlush(book);
 	}
 
 	@Transactional(readOnly = true)
@@ -90,9 +89,10 @@ public class BookApplicationService {
 	@Transactional
 	public void deleteBook(UUID bookId) {
 		Book book = getBookWithPages(bookId);
-		book.getPages().forEach(page -> imageStorage.delete(page.getObjectKey()));
+		List<String> objectKeys = book.getPages().stream().map(BookPage::getObjectKey).toList();
 		bookRepository.delete(book);
 		bookRepository.flush();
+		objectKeys.forEach(this::deleteImageAfterCommit);
 	}
 
 	@Transactional
@@ -107,21 +107,17 @@ public class BookApplicationService {
 				image.content().length,
 				new ByteArrayInputStream(image.content())
 		);
-		try {
-			BookPage page = new BookPage(
+		deleteImageOnRollback(objectKey);
+		BookPage page = new BookPage(
 					pageId,
 					pageNumber,
 					image.fileName(),
 					image.contentType(),
 					objectKey
-			);
-			book.addPage(page);
-			bookRepository.saveAndFlush(book);
-			return page;
-		} catch (RuntimeException exception) {
-			cleanupStoredImages(List.of(objectKey), exception);
-			throw exception;
-		}
+		);
+		book.addPage(page);
+		bookRepository.saveAndFlush(book);
+		return page;
 	}
 
 	@Transactional
@@ -149,15 +145,11 @@ public class BookApplicationService {
 				image.content().length,
 				new ByteArrayInputStream(image.content())
 		);
-		try {
-			page.replaceImage(image.fileName(), image.contentType(), nextObjectKey);
-			book.touch();
-			bookRepository.saveAndFlush(book);
-		} catch (RuntimeException exception) {
-			cleanupStoredImages(List.of(nextObjectKey), exception);
-			throw exception;
-		}
-		imageStorage.delete(previousObjectKey);
+		deleteImageOnRollback(nextObjectKey);
+		page.replaceImage(image.fileName(), image.contentType(), nextObjectKey);
+		book.touch();
+		bookRepository.saveAndFlush(book);
+		deleteImageAfterCommit(previousObjectKey);
 		return page;
 	}
 
@@ -165,9 +157,10 @@ public class BookApplicationService {
 	public void deletePage(UUID bookId, UUID pageId) {
 		Book book = getBookWithPages(bookId);
 		BookPage page = findPage(book, pageId);
-		imageStorage.delete(page.getObjectKey());
+		String objectKey = page.getObjectKey();
 		book.removePage(page);
 		bookRepository.saveAndFlush(book);
+		deleteImageAfterCommit(objectKey);
 	}
 
 	private Book getBookWithPages(UUID bookId) {
@@ -200,13 +193,31 @@ public class BookApplicationService {
 		return author == null || author.isBlank() ? null : author.trim();
 	}
 
-	private void cleanupStoredImages(List<String> objectKeys, RuntimeException originalException) {
-		for (String objectKey : objectKeys) {
-			try {
-				imageStorage.delete(objectKey);
-			} catch (RuntimeException cleanupException) {
-				originalException.addSuppressed(cleanupException);
+	private void deleteImageOnRollback(String objectKey) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCompletion(int status) {
+				if (status != STATUS_COMMITTED) {
+					safelyDeleteImage(objectKey);
+				}
 			}
+		});
+	}
+
+	private void deleteImageAfterCommit(String objectKey) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				safelyDeleteImage(objectKey);
+			}
+		});
+	}
+
+	private void safelyDeleteImage(String objectKey) {
+		try {
+			imageStorage.delete(objectKey);
+		} catch (RuntimeException exception) {
+			log.error("MinIO 이미지 정리에 실패했습니다. objectKey={}", objectKey, exception);
 		}
 	}
 
