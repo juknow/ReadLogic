@@ -142,6 +142,15 @@ public class BookController {
 		return BookPageResponse.from(bookService.replacePageImage(bookId, pageId, toUpload(image)));
 	}
 
+	@PostMapping("/{bookId}/pages/{pageId}/ocr")
+	public ResponseEntity<BookPageResponse> requestPageOcr(
+			@PathVariable UUID bookId,
+			@PathVariable UUID pageId
+	) {
+		BookPageResponse response = BookPageResponse.from(bookService.requestPageOcr(bookId, pageId));
+		return ResponseEntity.accepted().body(response);
+	}
+
 	@DeleteMapping("/{bookId}/pages/{pageId}")
 	public ResponseEntity<Void> deletePage(@PathVariable UUID bookId, @PathVariable UUID pageId) {
 		bookService.deletePage(bookId, pageId);

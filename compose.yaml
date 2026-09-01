@@ -32,6 +32,30 @@ services:
       timeout: 5s
       retries: 10
 
+  ocr-service:
+    build:
+      context: ./ocr-service
+    environment:
+      OCR_SERVICE_MAX_CONCURRENCY: ${OCR_CONCURRENCY:-1}
+      OCR_SERVICE_MAX_IMAGE_PIXELS: ${OCR_MAX_IMAGE_PIXELS:-40000000}
+      OCR_SERVICE_MAX_IMAGE_SIZE_BYTES: ${MAX_IMAGE_SIZE_BYTES:-10485760}
+    expose:
+      - "8000"
+    volumes:
+      - ocr-model-cache:/models
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+
   backend:
     build:
       context: ./backend
@@ -47,6 +71,15 @@ services:
       MAX_IMAGE_SIZE: ${MAX_IMAGE_SIZE:-10MB}
       MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-100MB}
       MAX_IMAGE_SIZE_BYTES: ${MAX_IMAGE_SIZE_BYTES:-10485760}
+      OCR_ENABLED: ${OCR_ENABLED:-true}
+      OCR_BASE_URL: ${OCR_BASE_URL:-http://ocr-service:8000}
+      OCR_CONNECT_TIMEOUT: ${OCR_CONNECT_TIMEOUT:-5s}
+      OCR_READ_TIMEOUT: ${OCR_READ_TIMEOUT:-120s}
+      OCR_MAX_ATTEMPTS: ${OCR_MAX_ATTEMPTS:-3}
+      OCR_POLL_INTERVAL: ${OCR_POLL_INTERVAL:-2s}
+      OCR_STALE_AFTER: ${OCR_STALE_AFTER:-5m}
+      OCR_CONCURRENCY: ${OCR_CONCURRENCY:-1}
+      OCR_BATCH_SIZE: ${OCR_BATCH_SIZE:-5}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:
@@ -64,3 +97,4 @@ services:
 volumes:
   postgres-data:
   minio-data:
+  ocr-model-cache:

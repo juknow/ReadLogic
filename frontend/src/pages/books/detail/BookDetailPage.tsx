@@ -10,6 +10,8 @@ import { appPaths } from '@/app/router/paths'
 import {
   getBookById,
   replaceBookOnServer,
+  retryPageOcr,
+  savePageExtractedText,
 } from '@/features/books/data/bookApiRepository'
 import { useObjectUrl } from '@/features/books/hooks/useObjectUrl'
 import {
@@ -34,13 +36,20 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
 function getOcrStatusLabel(page: BookPage) {
   if (page.ocrStatus === 'ready') return '텍스트 인식 완료'
   if (page.ocrStatus === 'failed') return '다시 인식 필요'
+  if (page.ocrStatus === 'processing') return '텍스트 인식 중'
   return '텍스트 인식 대기'
+}
+
+function getActionError(error: unknown, fallback: string) {
+  return error instanceof ApiError ? error.message : fallback
 }
 
 type PageCardProps = {
   isEditing: boolean
   onPageNumberChange: (pageId: string, pageNumber: number) => void
   onReplace: (pageId: string, file: File) => void
+  onRetryOcr: (pageId: string) => Promise<void>
+  onSaveText: (pageId: string, text: string) => Promise<void>
   page: BookPage
 }
 
@@ -48,15 +57,55 @@ function PageCard({
   isEditing,
   onPageNumberChange,
   onReplace,
+  onRetryOcr,
+  onSaveText,
   page,
 }: PageCardProps) {
   const pendingImageUrl = useObjectUrl(page.pendingImage)
   const imageUrl = pendingImageUrl || page.imageUrl
+  const [textDraft, setTextDraft] = useState(page.extractedText)
+  const [isTextEditing, setIsTextEditing] = useState(false)
+  const [isOcrActionPending, setIsOcrActionPending] = useState(false)
+  const [ocrActionError, setOcrActionError] = useState('')
+  const [ocrActionMessage, setOcrActionMessage] = useState('')
+
+  useEffect(() => {
+    if (!isTextEditing) setTextDraft(page.extractedText)
+  }, [isTextEditing, page.extractedText])
 
   function handleReplace(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (file) onReplace(page.id, file)
     event.target.value = ''
+  }
+
+  async function handleTextSave() {
+    setIsOcrActionPending(true)
+    setOcrActionError('')
+    setOcrActionMessage('')
+    try {
+      await onSaveText(page.id, textDraft)
+      setIsTextEditing(false)
+      setOcrActionMessage('교정한 본문을 저장했습니다.')
+    } catch (error) {
+      setOcrActionError(getActionError(error, '추출 본문을 저장하지 못했습니다.'))
+    } finally {
+      setIsOcrActionPending(false)
+    }
+  }
+
+  async function handleOcrRetry() {
+    setIsOcrActionPending(true)
+    setOcrActionError('')
+    setOcrActionMessage('')
+    try {
+      await onRetryOcr(page.id)
+      setOcrActionMessage('텍스트 재인식을 요청했습니다.')
+    } catch (error) {
+      setOcrActionError(getActionError(error, '텍스트 재인식을 요청하지 못했습니다.'))
+    } finally {
+      setIsOcrActionPending(false)
+    }
   }
 
   return (
@@ -87,7 +136,91 @@ function PageCard({
           <strong className={styles.pageTitle}>{page.pageNumber}쪽</strong>
         )}
         <p className={styles.fileName}>{page.fileName}</p>
-        <p className={styles.ocrStatus}>{getOcrStatusLabel(page)}</p>
+        <div className={styles.ocrSummary}>
+          <p className={styles.ocrStatus} data-status={page.ocrStatus}>
+            {(page.ocrStatus === 'pending' || page.ocrStatus === 'processing') && (
+              <span aria-hidden="true" className={styles.ocrSpinner} />
+            )}
+            {getOcrStatusLabel(page)}
+          </p>
+          {page.ocrConfidence !== null && (
+            <span>평균 신뢰도 {Math.round(page.ocrConfidence * 100)}%</span>
+          )}
+        </div>
+        {!isEditing && (page.ocrStatus === 'ready' || page.ocrStatus === 'failed') && (
+          <section className={styles.ocrPanel} aria-label={`${page.pageNumber}쪽 인식 본문`}>
+            {(page.ocrStatus === 'ready' || page.ocrStatus === 'failed') &&
+              (isTextEditing ? (
+                <>
+                  <label>
+                    <span>추출 본문 교정</span>
+                    <textarea
+                      onChange={(event) => setTextDraft(event.target.value)}
+                      rows={7}
+                      value={textDraft}
+                    />
+                  </label>
+                  <div className={styles.ocrActions}>
+                    <button
+                      disabled={isOcrActionPending}
+                      onClick={() => {
+                        setTextDraft(page.extractedText)
+                        setIsTextEditing(false)
+                        setOcrActionError('')
+                      }}
+                      type="button"
+                    >
+                      취소
+                    </button>
+                    <button
+                      disabled={isOcrActionPending}
+                      onClick={() => void handleTextSave()}
+                      type="button"
+                    >
+                      {isOcrActionPending ? '저장 중…' : '본문 저장'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className={styles.extractedText}>
+                    {page.extractedText || '인식된 텍스트가 없습니다.'}
+                  </p>
+                  <button
+                    className={styles.textEditButton}
+                    onClick={() => {
+                      setIsTextEditing(true)
+                      setOcrActionError('')
+                      setOcrActionMessage('')
+                    }}
+                    type="button"
+                  >
+                    본문 직접 수정
+                  </button>
+                </>
+              ))}
+            {page.ocrStatus === 'failed' && (
+              <div className={styles.ocrFailure}>
+                <p>{page.ocrErrorMessage || '텍스트 인식에 실패했습니다.'}</p>
+                {page.ocrErrorCode && <code>{page.ocrErrorCode}</code>}
+                <button
+                  disabled={isOcrActionPending}
+                  onClick={() => void handleOcrRetry()}
+                  type="button"
+                >
+                  {isOcrActionPending ? '요청 중…' : '다시 인식'}
+                </button>
+              </div>
+            )}
+            {page.ocrStatus === 'ready' && page.ocrModel && (
+              <p className={styles.ocrModel}>
+                {page.ocrEngine} · {page.ocrModel}
+              </p>
+            )}
+            {ocrActionError && <p className={styles.ocrActionError} role="alert">{ocrActionError}</p>}
+            {ocrActionMessage && <p className={styles.ocrActionMessage} role="status">{ocrActionMessage}</p>}
+          </section>
+        )}
         {isEditing && (
           <label className={styles.replaceAction}>
             <input
@@ -115,6 +248,10 @@ export function BookDetailPage() {
   const [newPageNumber, setNewPageNumber] = useState('')
   const [newPageFile, setNewPageFile] = useState<File | null>(null)
   const [addPageMessage, setAddPageMessage] = useState('')
+  const [isTabVisible, setIsTabVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState === 'visible',
+  )
+  const [ocrRefreshError, setOcrRefreshError] = useState('')
 
   useEffect(() => {
     let isActive = true
@@ -139,6 +276,51 @@ export function BookDetailPage() {
       isActive = false
     }
   }, [bookId])
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      setIsTabVisible(document.visibilityState === 'visible')
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
+  const hasActiveOcr =
+    book?.pages.some(
+      ({ ocrStatus }) => ocrStatus === 'pending' || ocrStatus === 'processing',
+    ) ?? false
+
+  useEffect(() => {
+    if (!book || !hasActiveOcr || isEditing || !isTabVisible) return
+
+    let isActive = true
+    let isRequesting = false
+    const intervalId = window.setInterval(() => {
+      if (isRequesting) return
+      isRequesting = true
+      void getBookById(bookId)
+        .then((refreshedBook) => {
+          if (!isActive || !refreshedBook) return
+          setBook(refreshedBook)
+          setDraftBook(refreshedBook)
+          setOcrRefreshError('')
+        })
+        .catch(() => {
+          if (isActive) {
+            setOcrRefreshError('OCR 진행 상태를 갱신하지 못했습니다. 자동으로 다시 시도합니다.')
+          }
+        })
+        .finally(() => {
+          isRequesting = false
+        })
+    }, 2_000)
+
+    return () => {
+      isActive = false
+      window.clearInterval(intervalId)
+    }
+  }, [book, bookId, hasActiveOcr, isEditing, isTabVisible])
 
   const visibleBook = draftBook ?? book
   const pageNumbers = visibleBook?.pages.map(({ pageNumber }) => pageNumber) ?? []
@@ -208,8 +390,16 @@ export function BookDetailPage() {
                     extractedText: '',
                     fileName: file.name,
                     mimeType: file.type,
+                    ocrCompletedAt: null,
+                    ocrConfidence: null,
+                    ocrEngine: null,
+                    ocrErrorCode: null,
+                    ocrErrorMessage: null,
+                    ocrModel: null,
+                    ocrRequestedAt: timestamp,
                     ocrStatus: 'pending',
                     pendingImage: file,
+                    textSource: 'none',
                     updatedAt: timestamp,
                   }
                 : page,
@@ -217,6 +407,29 @@ export function BookDetailPage() {
           }
         : currentBook,
     )
+  }
+
+  function applyServerPage(savedPage: BookPage) {
+    const replacePage = (currentBook: Book | null | undefined) =>
+      currentBook
+        ? {
+            ...currentBook,
+            pages: currentBook.pages.map((page) =>
+              page.id === savedPage.id ? savedPage : page,
+            ),
+          }
+        : currentBook
+
+    setBook(replacePage)
+    setDraftBook((currentBook) => replacePage(currentBook) ?? null)
+  }
+
+  async function handleRetryOcr(pageId: string) {
+    applyServerPage(await retryPageOcr(bookId, pageId))
+  }
+
+  async function handleSaveText(pageId: string, text: string) {
+    applyServerPage(await savePageExtractedText(bookId, pageId, text))
   }
 
   function addPage() {
@@ -363,6 +576,12 @@ export function BookDetailPage() {
         </p>
       )}
 
+      {ocrRefreshError && (
+        <p className={styles.refreshWarning} role="status">
+          {ocrRefreshError}
+        </p>
+      )}
+
       {isEditing && (
         <form className={styles.editForm} id="book-edit-form" onSubmit={handleSave}>
           <section className={styles.editSection} aria-labelledby="edit-book-info-title">
@@ -480,6 +699,8 @@ export function BookDetailPage() {
               key={page.id}
               onPageNumberChange={updatePageNumber}
               onReplace={replacePageImage}
+              onRetryOcr={handleRetryOcr}
+              onSaveText={handleSaveText}
               page={page}
             />
           ))}

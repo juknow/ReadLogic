@@ -122,6 +122,12 @@
   font-weight: 700;
 }
 
+.refreshWarning {
+  margin-block-end: var(--space-6);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
+
 .statusMessage span {
   display: grid;
   width: 1.5rem;
@@ -416,14 +422,171 @@
 }
 
 .ocrStatus {
+  display: inline-flex;
   width: fit-content;
-  margin-block-start: var(--space-2);
   padding: 0.125rem var(--space-2);
   border-radius: 999px;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--color-primary);
   background: #e8f0eb;
   font-size: 0.6875rem;
   font-weight: 750;
+}
+
+.ocrStatus[data-status='failed'] {
+  color: var(--color-danger);
+  background: rgb(176 55 55 / 9%);
+}
+
+.ocrStatus[data-status='processing'] {
+  color: #7b5b12;
+  background: #f8efd8;
+}
+
+.ocrSummary {
+  display: flex;
+  margin-block-start: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ocrSummary > span,
+.ocrModel {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+}
+
+.ocrSpinner {
+  width: 0.65rem;
+  height: 0.65rem;
+  border: 2px solid currentcolor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: ocr-spin 0.8s linear infinite;
+}
+
+.ocrPanel {
+  display: grid;
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--color-border);
+  gap: var(--space-3);
+}
+
+.ocrPanel label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ocrPanel label > span {
+  font-size: var(--font-size-caption);
+  font-weight: 700;
+}
+
+.ocrPanel textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  font: inherit;
+  font-size: var(--font-size-caption);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.ocrPanel textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.1875rem rgb(36 92 70 / 12%);
+}
+
+.extractedText {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+.textEditButton,
+.ocrActions button,
+.ocrFailure button {
+  min-height: 2.25rem;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  color: var(--color-text-primary);
+  background: var(--color-background);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.textEditButton {
+  justify-self: start;
+}
+
+.ocrActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ocrActions button:last-child,
+.ocrFailure button {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.ocrActions button:disabled,
+.ocrFailure button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ocrFailure {
+  display: grid;
+  padding: var(--space-3);
+  border-radius: var(--radius-small);
+  gap: var(--space-2);
+  color: var(--color-danger);
+  background: rgb(176 55 55 / 6%);
+  font-size: var(--font-size-caption);
+}
+
+.ocrFailure code {
+  font-size: 0.6875rem;
+}
+
+.ocrFailure button {
+  justify-self: start;
+  background: var(--color-surface);
+}
+
+.ocrActionError,
+.ocrActionMessage {
+  font-size: var(--font-size-caption);
+}
+
+.ocrActionError {
+  color: var(--color-danger);
+}
+
+.ocrActionMessage {
+  color: var(--color-success);
+}
+
+@keyframes ocr-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pageNumberField {
@@ -565,5 +728,9 @@
   .newPageNumberField input,
   .pageNumberField input {
     transition: none;
+  }
+
+  .ocrSpinner {
+    animation: none;
   }
 }

@@ -23,3 +23,13 @@ app:
       access-key: test-access-key
       secret-key: test-secret-key
       bucket: readlogic-test-pages
+  ocr:
+    enabled: false
+    base-url: http://localhost:8000
+    connect-timeout: 100ms
+    read-timeout: 100ms
+    max-attempts: 3
+    poll-interval: 2s
+    stale-after: 5m
+    concurrency: 1
+    batch-size: 5

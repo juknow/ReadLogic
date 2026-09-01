@@ -2,7 +2,9 @@ package com.readlogic.backend.book.api;
 
 import com.readlogic.backend.book.domain.BookPage;
 import com.readlogic.backend.book.domain.OcrStatus;
+import com.readlogic.backend.book.domain.TextSource;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
@@ -14,6 +16,14 @@ public record BookPageResponse(
 		String mimeType,
 		String extractedText,
 		String ocrStatus,
+		BigDecimal ocrConfidence,
+		String ocrEngine,
+		String ocrModel,
+		String ocrErrorCode,
+		String ocrErrorMessage,
+		Instant ocrRequestedAt,
+		Instant ocrCompletedAt,
+		String textSource,
 		String imageUrl,
 		Instant createdAt,
 		Instant updatedAt
@@ -26,6 +36,14 @@ public record BookPageResponse(
 				page.getMimeType(),
 				page.getExtractedText(),
 				toApiStatus(page.getOcrStatus()),
+				page.getOcrConfidence(),
+				page.getOcrEngine(),
+				page.getOcrModel(),
+				page.getOcrLastErrorCode(),
+				page.getOcrLastErrorMessage(),
+				page.getOcrRequestedAt(),
+				page.getOcrCompletedAt(),
+				toApiTextSource(page.getTextSource()),
 				"/api/books/%s/pages/%s/image".formatted(page.getBookId(), page.getId()),
 				page.getCreatedAt(),
 				page.getUpdatedAt()
@@ -34,6 +52,10 @@ public record BookPageResponse(
 
 	private static String toApiStatus(OcrStatus status) {
 		return status.name().toLowerCase(Locale.ROOT);
+	}
+
+	private static String toApiTextSource(TextSource source) {
+		return source.name().toLowerCase(Locale.ROOT);
 	}
 }
 

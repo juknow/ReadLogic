@@ -242,6 +242,38 @@ class BookApiIntegrationTests {
 				.andExpect(jsonPath("$.code").value("DUPLICATE_PAGE_NUMBER"));
 	}
 
+	@Test
+	void savesEmptyManualTextAndAcceptsOcrRetryRequests() throws Exception {
+		when(imageStorage.store(any(), any(), eq("image/png"), anyLong(), any()))
+				.thenReturn("object-1", "object-2");
+		mockMvc.perform(createBookRequest()).andExpect(status().isCreated());
+		Book book = bookRepository.findAllByOrderByCreatedAtDesc().getFirst();
+		BookPage page = book.getPages().getFirst();
+
+		mockMvc.perform(patch("/api/books/{bookId}/pages/{pageId}", book.getId(), page.getId())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"extractedText\":\"\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.ocrStatus").value("ready"))
+				.andExpect(jsonPath("$.textSource").value("manual"))
+				.andExpect(jsonPath("$.extractedText").value(""));
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), page.getId()))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.ocrStatus").value("pending"))
+				.andExpect(jsonPath("$.textSource").value("none"));
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), page.getId()))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.ocrStatus").value("pending"));
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), UUID.randomUUID()))
+				.andExpect(status().isNotFound());
+	}
+
 	private MockMultipartHttpServletRequestBuilder createBookRequest() {
 		return multipart("/api/books")
 				.file(jsonPart("metadata", """
