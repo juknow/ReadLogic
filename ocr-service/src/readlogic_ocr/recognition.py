@@ -42,6 +42,12 @@ class RoutingResult:
     warnings: tuple[OcrWarning, ...] = ()
 
 
+@dataclass(frozen=True)
+class TextLineOrientationResult:
+    images: tuple[np.ndarray, ...]
+    page_rotation_degrees: int = 0
+
+
 class BatchTextRecognizer(Protocol):
     def recognize(
         self,
@@ -52,7 +58,7 @@ class BatchTextRecognizer(Protocol):
 
 
 class TextLineOrienter(Protocol):
-    def orient(self, images: Sequence[np.ndarray]) -> tuple[np.ndarray, ...]: ...
+    def orient(self, images: Sequence[np.ndarray]) -> TextLineOrientationResult: ...
 
 
 class PaddleBatchTextRecognizer:
@@ -94,18 +100,25 @@ class PaddleTextLineOrienter:
             model_name=TEXT_LINE_ORIENTATION_MODEL
         )
 
-    def orient(self, images: Sequence[np.ndarray]) -> tuple[np.ndarray, ...]:
+    def orient(self, images: Sequence[np.ndarray]) -> TextLineOrientationResult:
         if not images:
-            return ()
+            return TextLineOrientationResult(())
         try:
             results = list(self._model.predict(list(images)))
             if len(results) != len(images):
                 raise OcrInferenceError()
-            return tuple(
+            classifications = tuple(
+                (_first_class_id(result), _first_score(result)) for result in results
+            )
+            oriented_images = tuple(
                 cv2.rotate(image, cv2.ROTATE_180)
-                if _first_class_id(result) == 1
+                if class_id == 1
                 else image
-                for image, result in zip(images, results, strict=True)
+                for image, (class_id, _) in zip(images, classifications, strict=True)
+            )
+            return TextLineOrientationResult(
+                images=oriented_images,
+                page_rotation_degrees=_dominant_page_rotation(classifications),
             )
         except OcrInferenceError:
             raise
@@ -429,3 +442,31 @@ def _first_class_id(result: Any) -> int:
         return int(class_ids[0])
     except (TypeError, ValueError, OverflowError) as exception:
         raise OcrInferenceError() from exception
+
+
+def _first_score(result: Any) -> float:
+    values = _get_value(result, "scores")
+    try:
+        scores = np.asarray(values).reshape(-1)
+    except (TypeError, ValueError) as exception:
+        raise OcrInferenceError() from exception
+    if scores.size == 0:
+        raise OcrInferenceError()
+    return _clamp_confidence(scores[0])
+
+
+def _dominant_page_rotation(
+    classifications: Sequence[tuple[int, float]],
+) -> int:
+    if len(classifications) < 2:
+        return 0
+    total_weight = sum(score for _, score in classifications)
+    if total_weight <= 0:
+        return 0
+    rotated_scores = tuple(score for class_id, score in classifications if class_id == 1)
+    if not rotated_scores:
+        return 0
+    rotated_weight = sum(rotated_scores)
+    rotated_ratio = rotated_weight / total_weight
+    mean_rotated_confidence = sum(rotated_scores) / len(rotated_scores)
+    return 180 if rotated_ratio >= 0.70 and mean_rotated_confidence >= 0.70 else 0

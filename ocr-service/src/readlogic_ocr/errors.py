@@ -49,3 +49,8 @@ class OcrNotReadyError(OcrServiceError):
 class OcrInferenceError(OcrServiceError):
     def __init__(self) -> None:
         super().__init__("OCR_INFERENCE_FAILED", "OCR inference failed.", 500)
+
+
+class OcrTimeoutError(OcrServiceError):
+    def __init__(self) -> None:
+        super().__init__("OCR_TIMEOUT", "OCR processing exceeded its stage deadline.", 504)

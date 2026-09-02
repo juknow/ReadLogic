@@ -56,7 +56,10 @@ def test_text_line_orienter_accepts_numpy_class_ids() -> None:
     class FakeOrientationModel:
         def predict(self, images: list[np.ndarray]) -> list[dict[str, np.ndarray]]:
             return [
-                {"class_ids": np.asarray([class_id], dtype=np.int32)}
+                {
+                    "class_ids": np.asarray([class_id], dtype=np.int32),
+                    "scores": np.asarray([0.9], dtype=np.float32),
+                }
                 for class_id, _ in enumerate(images)
             ]
 
@@ -67,8 +70,29 @@ def test_text_line_orienter_accepts_numpy_class_ids() -> None:
 
     oriented = orienter.orient((first, second))
 
-    assert np.array_equal(oriented[0], first)
-    assert np.array_equal(oriented[1], np.rot90(second, 2))
+    assert np.array_equal(oriented.images[0], first)
+    assert np.array_equal(oriented.images[1], np.rot90(second, 2))
+    assert oriented.page_rotation_degrees == 0
+
+
+def test_text_line_orienter_reports_dominant_upside_down_page() -> None:
+    class UpsideDownOrientationModel:
+        def predict(self, images: list[np.ndarray]) -> list[dict[str, np.ndarray]]:
+            return [
+                {
+                    "class_ids": np.asarray([1], dtype=np.int32),
+                    "scores": np.asarray([0.9], dtype=np.float32),
+                }
+                for _ in images
+            ]
+
+    orienter = PaddleTextLineOrienter.__new__(PaddleTextLineOrienter)
+    orienter._model = UpsideDownOrientationModel()
+    images = tuple(np.zeros((2, 2, 3), dtype=np.uint8) for _ in range(2))
+
+    oriented = orienter.orient(images)
+
+    assert oriented.page_rotation_degrees == 180
 
 
 class ScriptRecognizer:

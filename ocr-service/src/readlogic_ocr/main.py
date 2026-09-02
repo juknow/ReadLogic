@@ -42,14 +42,20 @@ SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 def create_app(
     settings: Settings | None = None,
-    engine_factory: Callable[[], OcrEngine] = PaddleOcrEngine,
+    engine_factory: Callable[[], OcrEngine] | None = None,
 ) -> FastAPI:
     service_settings = settings or get_settings()
+    resolved_engine_factory = engine_factory or (
+        lambda: PaddleOcrEngine(
+            preload_languages=service_settings.preload_language_values,
+            stage_timeout_seconds=service_settings.stage_timeout_seconds,
+        )
+    )
     runtime = RuntimeState(
         engine_name=service_settings.engine_name,
         model_name=service_settings.model_name,
         max_concurrency=service_settings.max_concurrency,
-        engine_factory=engine_factory,
+        engine_factory=resolved_engine_factory,
     )
 
     @asynccontextmanager

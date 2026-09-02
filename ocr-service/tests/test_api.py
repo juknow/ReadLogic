@@ -209,3 +209,21 @@ def test_runtime_rejects_parallel_inference() -> None:
         assert first_request.result(timeout=1).text == ""
 
     assert cast(OcrEngine, runtime._engine) is not None  # noqa: SLF001
+
+
+def test_runtime_initializes_engine_only_once_across_threads() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    created: list[FakeEngine] = []
+
+    def create_engine() -> FakeEngine:
+        engine = FakeEngine()
+        created.append(engine)
+        return engine
+
+    runtime = RuntimeState("paddleocr", "model", 1, create_engine)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(lambda _: runtime.initialize(), range(4)))
+
+    assert len(created) == 1
+    assert runtime.ready
