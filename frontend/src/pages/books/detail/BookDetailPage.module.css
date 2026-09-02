@@ -200,6 +200,10 @@
   gap: var(--space-2);
 }
 
+.bookFields label:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
 .bookFields label > span,
 .newPageNumberField > span,
 .newPageFileField > span,
@@ -217,6 +221,7 @@
 }
 
 .bookFields input,
+.bookFields select,
 .newPageNumberField input,
 .pageNumberField input {
   width: 100%;
@@ -233,6 +238,7 @@
 }
 
 .bookFields input:focus,
+.bookFields select:focus,
 .newPageNumberField input:focus,
 .pageNumberField input:focus {
   border-color: var(--color-primary);
@@ -485,6 +491,63 @@
   font-weight: 700;
 }
 
+.ocrLanguageControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.ocrLanguageControl select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-background);
+}
+
+.ocrLanguageControl select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.1875rem rgb(36 92 70 / 12%);
+}
+
+.ocrLanguageControl button {
+  min-height: 2.75rem;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-small);
+  color: var(--color-primary);
+  background: var(--color-background);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ocrLanguageControl button:disabled,
+.ocrLanguageControl select:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ocrDocumentMeta {
+  display: grid;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-small);
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  background: rgb(36 92 70 / 6%);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.ocrDocumentMeta > span {
+  color: var(--color-primary);
+  font-weight: 750;
+}
+
 .ocrPanel textarea {
   width: 100%;
   padding: var(--space-3);
@@ -702,6 +765,10 @@
   }
 
   .bookFields {
+    grid-template-columns: 1fr;
+  }
+
+  .ocrLanguageControl {
     grid-template-columns: 1fr;
   }
 

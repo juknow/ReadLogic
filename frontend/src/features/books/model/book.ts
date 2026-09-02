@@ -1,5 +1,76 @@
 export type BookPageOcrStatus = 'failed' | 'pending' | 'processing' | 'ready'
 export type BookPageTextSource = 'manual' | 'none' | 'ocr'
+export type OcrLanguage = 'auto' | 'en' | 'ja' | 'ko' | 'zh'
+export type DetectedOcrLanguage = 'en' | 'ja' | 'ko' | 'mixed' | 'und' | 'zh'
+export type OcrParagraphType = 'body' | 'title' | 'unknown'
+
+export const OCR_LANGUAGE_OPTIONS = [
+  { label: '한국어', value: 'ko' },
+  { label: '영어', value: 'en' },
+  { label: '일본어', value: 'ja' },
+  { label: '중국어', value: 'zh' },
+  { label: '자동 감지', value: 'auto' },
+] as const satisfies ReadonlyArray<{ label: string; value: OcrLanguage }>
+
+export function getOcrLanguageLabel(language: DetectedOcrLanguage | OcrLanguage) {
+  if (language === 'mixed') return '혼합 언어'
+  if (language === 'und') return '판정 불가'
+  return OCR_LANGUAGE_OPTIONS.find(({ value }) => value === language)?.label ?? language
+}
+
+export type OcrWarning = {
+  code: string
+  message: string
+}
+
+export type OcrLine = {
+  bbox: [number, number, number, number]
+  confidence: number
+  detectionConfidence: number | null
+  id: number
+  language: DetectedOcrLanguage
+  model: string
+  order: number
+  polygon: [number, number][]
+  text: string
+}
+
+export type OcrParagraph = {
+  bbox: [number, number, number, number]
+  confidence: number
+  id: number
+  lines: OcrLine[]
+  order: number
+  text: string
+  type: OcrParagraphType
+}
+
+export type OcrDocument = {
+  coordinateSpace: 'corrected_image'
+  correction: {
+    exifApplied: boolean
+    fallbackUsed: boolean
+    orientationApplied: boolean
+    rotationDegrees: number
+    unwarpingApplied: boolean
+  }
+  detectedLanguage: DetectedOcrLanguage
+  image: {
+    height: number
+    width: number
+  }
+  models: {
+    detector: string
+    orientation: string
+    recognizers: string[]
+    textLineOrientation: string
+    unwarping: string
+  }
+  paragraphs: OcrParagraph[]
+  requestedLanguage: OcrLanguage
+  schemaVersion: 1
+  warnings: OcrWarning[]
+}
 
 export type BookPage = {
   createdAt: string
@@ -14,7 +85,9 @@ export type BookPage = {
   ocrEngine: string | null
   ocrErrorCode: string | null
   ocrErrorMessage: string | null
+  ocrLanguage: OcrLanguage | null
   ocrModel: string | null
+  ocrDocument: OcrDocument | null
   ocrRequestedAt: string | null
   ocrStatus: BookPageOcrStatus
   pageNumber: number
@@ -26,6 +99,7 @@ export type BookPage = {
 export type Book = {
   author: string
   createdAt: string
+  defaultOcrLanguage: OcrLanguage
   id: string
   pages: BookPage[]
   title: string
@@ -51,6 +125,7 @@ export type NewBookPageInput = {
 
 export type CreateBookInput = {
   author: string
+  defaultOcrLanguage: OcrLanguage
   pages: NewBookPageInput[]
   title: string
 }
@@ -71,7 +146,9 @@ export function createBookPage(file: File, pageNumber: number): BookPage {
     ocrEngine: null,
     ocrErrorCode: null,
     ocrErrorMessage: null,
+    ocrLanguage: null,
     ocrModel: null,
+    ocrDocument: null,
     ocrRequestedAt: timestamp,
     ocrStatus: 'pending',
     pageNumber,

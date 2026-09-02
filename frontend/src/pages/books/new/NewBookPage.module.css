@@ -142,6 +142,20 @@
   gap: var(--space-2);
 }
 
+.languageField {
+  grid-column: 1 / -1;
+}
+
+.languageField select {
+  width: min(100%, 20rem);
+}
+
+.languageField small {
+  margin-inline-start: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 .field > span,
 .pageNumberSeed > label {
   color: var(--color-text-primary);
@@ -157,6 +171,7 @@
 }
 
 .field input,
+.field select,
 .pageNumberSeed input,
 .pageNumberField input {
   width: 100%;
@@ -172,7 +187,8 @@
     box-shadow var(--duration-fast) var(--ease-standard);
 }
 
-.field input {
+.field input,
+.field select {
   padding-inline: var(--space-4);
 }
 
@@ -183,6 +199,7 @@
 }
 
 .field input:focus,
+.field select:focus,
 .pageNumberSeed input:focus,
 .pageNumberField input:focus {
   border-color: var(--color-primary);

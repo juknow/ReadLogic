@@ -23,7 +23,9 @@ const pageResponse = {
   ocrEngine: null,
   ocrErrorCode: null,
   ocrErrorMessage: null,
+  ocrLanguage: null,
   ocrModel: null,
+  ocrDocument: null,
   ocrRequestedAt: '2026-09-01T01:00:00Z',
   ocrStatus: 'pending',
   pageNumber: 10,
@@ -34,6 +36,7 @@ const pageResponse = {
 const bookResponse = {
   author: '저자',
   createdAt: '2026-09-01T01:00:00Z',
+  defaultOcrLanguage: 'ko' as const,
   id: 'book-1',
   pages: [pageResponse],
   title: '책 제목',
@@ -99,6 +102,7 @@ describe('bookApiRepository', () => {
 
     await createBookOnServer({
       author: ' 저자 ',
+      defaultOcrLanguage: 'ja',
       pages: [
         { file: firstImage, pageNumber: 10 },
         { file: secondImage, pageNumber: 11 },
@@ -113,6 +117,7 @@ describe('bookApiRepository', () => {
     const formData = getRequestFormData(fetchMock)
     await expect(readMetadata(formData)).resolves.toEqual({
       author: '저자',
+      defaultOcrLanguage: 'ja',
       pages: [{ pageNumber: 10 }, { pageNumber: 11 }],
       title: '책 제목',
     })
@@ -154,6 +159,7 @@ describe('bookApiRepository', () => {
     const formData = getRequestFormData(fetchMock)
     await expect(readMetadata(formData)).resolves.toEqual({
       author: '저자',
+      defaultOcrLanguage: 'ko',
       pages: [
         { id: 'page-1', imageIndex: 0, pageNumber: 11 },
         { id: null, imageIndex: 1, pageNumber: 10 },
@@ -168,6 +174,7 @@ describe('bookApiRepository', () => {
       ...pageResponse,
       ocrEngine: 'paddleocr',
       ocrModel: 'PP-OCRv5-korean',
+      ocrLanguage: 'ja' as const,
       ocrStatus: 'processing' as const,
     }
     const fetchMock = vi
@@ -192,11 +199,14 @@ describe('bookApiRepository', () => {
       ocrStatus: 'processing',
     })
 
-    await retryPageOcr('book-1', 'page-1')
+    await retryPageOcr('book-1', 'page-1', 'ja')
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'http://localhost:8080/api/books/book-1/pages/page-1/ocr',
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        body: JSON.stringify({ language: 'ja' }),
+        method: 'POST',
+      }),
     )
 
     const savedPage = await savePageExtractedText('book-1', 'page-1', '교정한 본문')
