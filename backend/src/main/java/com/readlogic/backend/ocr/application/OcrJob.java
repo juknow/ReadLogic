@@ -8,6 +8,7 @@ public record OcrJob(
 		int attemptCount,
 		String objectKey,
 		String fileName,
-		String contentType
+		String contentType,
+		String language
 ) {
 }

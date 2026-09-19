@@ -27,6 +27,15 @@ class ImageTooLargeError(OcrServiceError):
         super().__init__("IMAGE_TOO_LARGE", message, 400)
 
 
+class InvalidOcrLanguageError(OcrServiceError):
+    def __init__(self) -> None:
+        super().__init__(
+            "INVALID_OCR_LANGUAGE",
+            "OCR language must be one of auto, ko, en, ja, or zh.",
+            400,
+        )
+
+
 class OcrBusyError(OcrServiceError):
     def __init__(self) -> None:
         super().__init__("OCR_BUSY", "The OCR engine is busy.", 429)
@@ -40,3 +49,8 @@ class OcrNotReadyError(OcrServiceError):
 class OcrInferenceError(OcrServiceError):
     def __init__(self) -> None:
         super().__init__("OCR_INFERENCE_FAILED", "OCR inference failed.", 500)
+
+
+class OcrTimeoutError(OcrServiceError):
+    def __init__(self) -> None:
+        super().__init__("OCR_TIMEOUT", "OCR processing exceeded its stage deadline.", 504)

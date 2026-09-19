@@ -36,7 +36,9 @@ function createPage(
     ocrEngine: ocrStatus === 'ready' ? 'paddleocr' : null,
     ocrErrorCode: ocrStatus === 'failed' ? 'OCR_INFERENCE_FAILED' : null,
     ocrErrorMessage: ocrStatus === 'failed' ? '인식에 실패했습니다.' : null,
+    ocrLanguage: null,
     ocrModel: ocrStatus === 'ready' ? 'PP-OCRv5-korean' : null,
+    ocrDocument: null,
     ocrRequestedAt: timestamp,
     ocrStatus,
     pageNumber: id === 'page-1' ? 1 : 2,
@@ -50,6 +52,7 @@ function createBook(pages: BookPage[]): Book {
   return {
     author: '저자',
     createdAt: timestamp,
+    defaultOcrLanguage: 'ko',
     id: 'book-1',
     pages,
     title: 'OCR 테스트 책',
@@ -178,10 +181,77 @@ describe('BookDetailPage OCR', () => {
     renderDetail()
     await screen.findByText('다시 인식 필요')
 
-    fireEvent.click(screen.getByRole('button', { name: '다시 인식' }))
+    fireEvent.click(screen.getByRole('button', { name: '선택 언어로 재인식' }))
 
-    expect(apiMocks.retryPageOcr).toHaveBeenCalledWith('book-1', 'page-1')
+    expect(apiMocks.retryPageOcr).toHaveBeenCalledWith('book-1', 'page-1', null)
     expect(await screen.findByText('텍스트 인식 대기')).toBeTruthy()
+  })
+
+  it('페이지별 언어 override와 OCR warning을 표시한다', async () => {
+    const readyPage = createPage('page-1', 'ready', {
+      ocrDocument: {
+        coordinateSpace: 'corrected_image',
+        correction: {
+          exifApplied: true,
+          fallbackUsed: true,
+          orientationApplied: true,
+          rotationDegrees: 90,
+          unwarpingApplied: false,
+        },
+        detectedLanguage: 'ja',
+        image: { height: 1600, width: 1200 },
+        models: {
+          detector: 'PP-OCRv5_server_det',
+          orientation: 'PP-LCNet_x1_0_doc_ori',
+          recognizers: ['PP-OCRv5_server_rec'],
+          textLineOrientation: 'PP-LCNet_x1_0_textline_ori',
+          unwarping: 'UVDoc',
+        },
+        paragraphs: [],
+        requestedLanguage: 'auto',
+        schemaVersion: 1,
+        warnings: [
+          {
+            code: 'DOCUMENT_UNWARPING_FALLBACK',
+            message: '왜곡 보정 대신 회전된 원본을 사용했습니다.',
+          },
+        ],
+      },
+    })
+    apiMocks.getBookById.mockResolvedValue(createBook([readyPage]))
+    apiMocks.retryPageOcr.mockResolvedValue(
+      createPage('page-1', 'pending', { ocrLanguage: 'ja' }),
+    )
+    renderDetail()
+
+    expect(await screen.findByText('감지 언어 일본어')).toBeTruthy()
+    expect(screen.getByText('왜곡 보정 대신 회전된 원본을 사용했습니다.')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: '페이지 OCR 언어' }), {
+      target: { value: 'ja' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '선택 언어로 재인식' }))
+
+    expect(apiMocks.retryPageOcr).toHaveBeenCalledWith('book-1', 'page-1', 'ja')
+    expect(await screen.findByText('텍스트 인식 대기')).toBeTruthy()
+  })
+
+  it('책 기본 OCR 언어를 수정 초안과 함께 저장한다', async () => {
+    const book = createBook([createPage('page-1', 'ready')])
+    apiMocks.getBookById.mockResolvedValue(book)
+    apiMocks.replaceBookOnServer.mockImplementation(async (draft: Book) => draft)
+    renderDetail()
+    await screen.findByText('텍스트 인식 완료')
+
+    fireEvent.click(screen.getByRole('button', { name: '책 수정' }))
+    fireEvent.change(screen.getByRole('combobox', { name: '기본 OCR 언어' }), {
+      target: { value: 'zh' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '변경 저장' }))
+
+    expect(apiMocks.replaceBookOnServer).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultOcrLanguage: 'zh' }),
+    )
+    expect(await screen.findByText('책과 페이지 변경사항을 저장했습니다.')).toBeTruthy()
   })
 
   it('교정 본문을 저장하고 네트워크 오류는 초안과 함께 표시한다', async () => {

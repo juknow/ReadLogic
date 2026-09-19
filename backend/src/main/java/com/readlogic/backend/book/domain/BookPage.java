@@ -11,9 +11,12 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -60,6 +63,14 @@ public class BookPage {
 
 	@Column(name = "ocr_model", length = 100)
 	private String ocrModel;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "ocr_language", length = 10)
+	private OcrLanguage ocrLanguage;
+
+	@JdbcTypeCode(SqlTypes.JSON)
+	@Column(name = "ocr_document", columnDefinition = "jsonb")
+	private Map<String, Object> ocrDocument;
 
 	@Column(name = "ocr_last_error_code", length = 100)
 	private String ocrLastErrorCode;
@@ -146,6 +157,7 @@ public class BookPage {
 		this.ocrConfidence = null;
 		this.ocrEngine = null;
 		this.ocrModel = null;
+		this.ocrDocument = null;
 		this.ocrLastErrorCode = null;
 		this.ocrLastErrorMessage = null;
 		this.ocrStartedAt = null;
@@ -165,6 +177,15 @@ public class BookPage {
 		if (ocrStatus == OcrStatus.PENDING || ocrStatus == OcrStatus.PROCESSING) {
 			return;
 		}
+		ocrRevision++;
+		resetForOcr();
+	}
+
+	public void requestOcr(OcrLanguage language) {
+		if (ocrLanguage == language && (ocrStatus == OcrStatus.PENDING || ocrStatus == OcrStatus.PROCESSING)) {
+			return;
+		}
+		ocrLanguage = language;
 		ocrRevision++;
 		resetForOcr();
 	}
@@ -189,6 +210,7 @@ public class BookPage {
 			BigDecimal confidence,
 			String engine,
 			String model,
+			Map<String, Object> document,
 			Instant completedAt
 	) {
 		if (!isCurrentProcessing(expectedRevision)) {
@@ -199,6 +221,7 @@ public class BookPage {
 		ocrConfidence = confidence;
 		ocrEngine = engine;
 		ocrModel = model;
+		ocrDocument = document;
 		ocrLastErrorCode = null;
 		ocrLastErrorMessage = null;
 		ocrCompletedAt = completedAt;
@@ -267,6 +290,7 @@ public class BookPage {
 		this.ocrConfidence = null;
 		this.ocrEngine = null;
 		this.ocrModel = null;
+		this.ocrDocument = null;
 		this.ocrLastErrorCode = null;
 		this.ocrLastErrorMessage = null;
 		this.ocrRequestedAt = now;
@@ -326,6 +350,18 @@ public class BookPage {
 
 	public String getOcrModel() {
 		return ocrModel;
+	}
+
+	public OcrLanguage getOcrLanguage() {
+		return ocrLanguage;
+	}
+
+	public OcrLanguage getEffectiveOcrLanguage() {
+		return ocrLanguage == null ? book.getDefaultOcrLanguage() : ocrLanguage;
+	}
+
+	public Map<String, Object> getOcrDocument() {
+		return ocrDocument;
 	}
 
 	public String getOcrLastErrorCode() {

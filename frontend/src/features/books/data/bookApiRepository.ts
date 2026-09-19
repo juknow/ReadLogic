@@ -6,6 +6,8 @@ import type {
   BookPageTextSource,
   BookSummary,
   CreateBookInput,
+  OcrDocument,
+  OcrLanguage,
 } from '@/features/books/model/book'
 
 type BookPageResponse = {
@@ -20,7 +22,9 @@ type BookPageResponse = {
   ocrEngine: string | null
   ocrErrorCode: string | null
   ocrErrorMessage: string | null
+  ocrLanguage?: OcrLanguage | null
   ocrModel: string | null
+  ocrDocument?: OcrDocument | null
   ocrRequestedAt: string | null
   ocrStatus: BookPageOcrStatus
   pageNumber: number
@@ -31,6 +35,7 @@ type BookPageResponse = {
 type BookResponse = {
   author: string
   createdAt: string
+  defaultOcrLanguage?: OcrLanguage
   id: string
   pages: BookPageResponse[]
   title: string
@@ -72,6 +77,7 @@ export async function getBookById(bookId: string) {
 export async function createBookOnServer(input: CreateBookInput) {
   const metadata = {
     author: input.author.trim(),
+    defaultOcrLanguage: input.defaultOcrLanguage,
     pages: input.pages.map(({ pageNumber }) => ({ pageNumber })),
     title: input.title.trim(),
   }
@@ -107,6 +113,7 @@ export async function replaceBookOnServer(book: Book) {
   })
   const metadata = {
     author: book.author.trim(),
+    defaultOcrLanguage: book.defaultOcrLanguage,
     pages,
     title: book.title.trim(),
   }
@@ -125,11 +132,20 @@ export async function replaceBookOnServer(book: Book) {
   )
 }
 
-export async function retryPageOcr(bookId: string, pageId: string) {
+export async function retryPageOcr(
+  bookId: string,
+  pageId: string,
+  language?: OcrLanguage | null,
+) {
+  const options: RequestInit = { method: 'POST' }
+  if (language !== undefined) {
+    options.body = JSON.stringify({ language })
+    options.headers = { 'Content-Type': 'application/json' }
+  }
   return mapBookPage(
     await requestApi<BookPageResponse>(
       `/api/books/${bookId}/pages/${pageId}/ocr`,
-      { method: 'POST' },
+      options,
     ),
   )
 }
@@ -154,6 +170,7 @@ export async function savePageExtractedText(
 function mapBook(book: BookResponse): Book {
   return {
     ...book,
+    defaultOcrLanguage: book.defaultOcrLanguage ?? 'ko',
     pages: book.pages.map(mapBookPage),
   }
 }
@@ -169,5 +186,7 @@ function mapBookPage(page: BookPageResponse): BookPage {
   return {
     ...page,
     imageUrl: resolveApiUrl(page.imageUrl),
+    ocrDocument: page.ocrDocument ?? null,
+    ocrLanguage: page.ocrLanguage ?? null,
   }
 }

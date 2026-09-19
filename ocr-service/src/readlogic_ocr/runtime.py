@@ -31,14 +31,14 @@ class RuntimeState:
             if self._engine is None:
                 self._engine = self._engine_factory()
 
-    def recognize(self, image: np.ndarray) -> EngineResult:
+    def recognize(self, image: np.ndarray, language: str = "ko") -> EngineResult:
         engine = self._engine
         if engine is None:
             raise OcrNotReadyError()
         if not self._semaphore.acquire(blocking=False):
             raise OcrBusyError()
         try:
-            return engine.recognize(image)
+            return engine.recognize(image, language)
         finally:
             self._semaphore.release()
 

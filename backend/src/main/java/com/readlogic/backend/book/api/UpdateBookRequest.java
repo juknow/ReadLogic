@@ -5,7 +5,8 @@ import jakarta.validation.constraints.Size;
 
 public record UpdateBookRequest(
 		@NotBlank @Size(max = 255) String title,
-		@Size(max = 255) String author
+		@Size(max = 255) String author,
+		String defaultOcrLanguage
 ) {
 }
 

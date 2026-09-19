@@ -17,11 +17,17 @@ from readlogic_ocr.runtime import RuntimeState
 
 class FakeEngine:
     def __init__(self, result: EngineResult | None = None) -> None:
-        self.result = result or EngineResult(confidence=0.9123, text="인식된 문장")
+        self.result = result or EngineResult(
+            confidence=0.9123,
+            text="인식된 문장",
+            image_size=(20, 20),
+        )
         self.requests = 0
+        self.languages: list[str] = []
 
-    def recognize(self, _: np.ndarray) -> EngineResult:
+    def recognize(self, _: np.ndarray, language: str = "ko") -> EngineResult:
         self.requests += 1
+        self.languages.append(language)
         return self.result
 
 
@@ -42,11 +48,18 @@ def create_client(
     return TestClient(create_app(settings=settings, engine_factory=lambda: engine))
 
 
-def recognize(client: TestClient, content: bytes, content_type: str = "image/png"):
+def recognize(
+    client: TestClient,
+    content: bytes,
+    content_type: str = "image/png",
+    language: str | None = None,
+):
+    data = {} if language is None else {"language": language}
     return client.post(
         "/internal/v1/ocr",
         headers={"X-Ocr-Request-Id": str(UUID(int=1))},
         files={"image": ("page", content, content_type)},
+        data=data,
     )
 
 
@@ -68,11 +81,40 @@ def test_health_and_ocr_contract_load_engine_once() -> None:
         "text": "인식된 문장",
         "confidence": 0.9123,
         "engine": "paddleocr",
-        "model": "PP-OCRv5-korean",
+        "model": "korean_PP-OCRv5_mobile_rec",
         "processingTimeMs": first_response.json()["processingTimeMs"],
+        "document": {
+            "schemaVersion": 1,
+            "requestedLanguage": "ko",
+            "detectedLanguage": "ko",
+            "coordinateSpace": "corrected_image",
+            "image": {"width": 20, "height": 20},
+            "correction": {
+                "exifApplied": True,
+                "orientationApplied": False,
+                "rotationDegrees": 0,
+                "unwarpingApplied": False,
+                "fallbackUsed": False,
+            },
+            "models": {
+                "orientation": "PP-LCNet_x1_0_doc_ori",
+                "unwarping": "UVDoc",
+                "detector": "PP-OCRv5_server_det",
+                "textLineOrientation": "PP-LCNet_x1_0_textline_ori",
+                "recognizers": ["korean_PP-OCRv5_mobile_rec"],
+            },
+            "warnings": [
+                {
+                    "code": "NO_TEXT_DETECTED",
+                    "message": "No text was detected in the image.",
+                }
+            ],
+            "paragraphs": [],
+        },
     }
     assert second_response.status_code == 200
     assert engine.requests == 2
+    assert engine.languages == ["ko", "ko"]
 
 
 def test_empty_ocr_result_is_successful() -> None:
@@ -83,6 +125,18 @@ def test_empty_ocr_result_is_successful() -> None:
     assert response.status_code == 200
     assert response.json()["text"] == ""
     assert response.json()["confidence"] is None
+
+
+def test_accepts_supported_language_and_rejects_unknown_language() -> None:
+    engine = FakeEngine()
+    with create_client(engine) as client:
+        japanese = recognize(client, create_image(), language="ja")
+        invalid = recognize(client, create_image(), language="fr")
+
+    assert japanese.status_code == 200
+    assert engine.languages == ["ja"]
+    assert invalid.status_code == 400
+    assert invalid.json()["code"] == "INVALID_OCR_LANGUAGE"
 
 
 @pytest.mark.parametrize(
@@ -137,7 +191,7 @@ def test_runtime_rejects_parallel_inference() -> None:
     release = Event()
 
     class BlockingEngine:
-        def recognize(self, _: np.ndarray) -> EngineResult:
+        def recognize(self, _: np.ndarray, language: str = "ko") -> EngineResult:
             started.set()
             release.wait(timeout=2)
             return EngineResult(None, "")
@@ -155,3 +209,21 @@ def test_runtime_rejects_parallel_inference() -> None:
         assert first_request.result(timeout=1).text == ""
 
     assert cast(OcrEngine, runtime._engine) is not None  # noqa: SLF001
+
+
+def test_runtime_initializes_engine_only_once_across_threads() -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    created: list[FakeEngine] = []
+
+    def create_engine() -> FakeEngine:
+        engine = FakeEngine()
+        created.append(engine)
+        return engine
+
+    runtime = RuntimeState("paddleocr", "model", 1, create_engine)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(lambda _: runtime.initialize(), range(4)))
+
+    assert len(created) == 1
+    assert runtime.ready

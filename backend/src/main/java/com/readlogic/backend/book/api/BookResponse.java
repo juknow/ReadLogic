@@ -11,6 +11,7 @@ public record BookResponse(
 		UUID id,
 		String title,
 		String author,
+		String defaultOcrLanguage,
 		List<BookPageResponse> pages,
 		Instant createdAt,
 		Instant updatedAt
@@ -20,6 +21,7 @@ public record BookResponse(
 				book.getId(),
 				book.getTitle(),
 				book.getAuthor() == null ? "" : book.getAuthor(),
+				book.getDefaultOcrLanguage().apiValue(),
 				book.getPages().stream()
 						.sorted(Comparator.comparingInt(page -> page.getPageNumber()))
 						.map(BookPageResponse::from)

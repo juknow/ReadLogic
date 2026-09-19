@@ -3,6 +3,8 @@ package com.readlogic.backend.book.domain;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -29,6 +31,10 @@ public class Book {
 
 	private String author;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "default_ocr_language", nullable = false, length = 10)
+	private OcrLanguage defaultOcrLanguage;
+
 	@OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	@OrderBy("pageNumber ASC")
 	private final List<BookPage> pages = new ArrayList<>();
@@ -43,9 +49,14 @@ public class Book {
 	}
 
 	public Book(String title, String author) {
+		this(title, author, OcrLanguage.KO);
+	}
+
+	public Book(String title, String author, OcrLanguage defaultOcrLanguage) {
 		this.id = UUID.randomUUID();
 		this.title = title;
 		this.author = author;
+		this.defaultOcrLanguage = defaultOcrLanguage;
 	}
 
 	@PrePersist
@@ -61,8 +72,13 @@ public class Book {
 	}
 
 	public void updateMetadata(String title, String author) {
+		updateMetadata(title, author, defaultOcrLanguage);
+	}
+
+	public void updateMetadata(String title, String author, OcrLanguage defaultOcrLanguage) {
 		this.title = title;
 		this.author = author;
+		this.defaultOcrLanguage = defaultOcrLanguage;
 	}
 
 	public void addPage(BookPage page) {
@@ -91,6 +107,10 @@ public class Book {
 
 	public String getAuthor() {
 		return author;
+	}
+
+	public OcrLanguage getDefaultOcrLanguage() {
+		return defaultOcrLanguage;
 	}
 
 	public List<BookPage> getPages() {

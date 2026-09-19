@@ -405,15 +405,18 @@ Retry Mission
 1. Home 화면
 2. 새 책 등록
 3. 책의 페이지별 이미지 업로드
-4. 페이지별 이미지 텍스트 추출 및 저장
-5. 등록된 책에서 새로운 독서 세션 시작
-6. 20분 독서 타이머
-7. 5분 구조화 입력
-8. 5분 글 요약 입력
-9. 3분 음성 녹음
-10. 음성 전사
-11. AI 피드백
-12. Retry
+4. 책 기본 언어와 페이지별 override를 사용하는 한국어·영어·일본어·중국어 OCR
+5. 카메라 촬영 페이지의 방향·perspective·휘어짐 보정
+6. line/bbox/confidence와 paragraph를 포함하는 구조화 OCR 결과 저장
+7. 사용자의 OCR 본문 직접 교정과 재인식
+8. 등록된 책에서 새로운 독서 세션 시작
+9. 20분 독서 타이머
+10. 5분 구조화 입력
+11. 5분 글 요약 입력
+12. 3분 음성 녹음
+13. 음성 전사
+14. AI 피드백
+15. Retry
 
 ---
 
@@ -435,6 +438,10 @@ Retry Mission
 - 실시간 멀티플레이
 - 불필요한 애니메이션
 - 과도한 개인화
+- PP-StructureV3 기반 범용 문서 parser
+- 표 cell, 수식과 이미지 영역 추출
+- OCR bbox overlay와 paragraph 수동 편집
+- 세로쓰기 CJK의 정식 layout 보장
 
 ---
 
@@ -514,45 +521,28 @@ Vite
 
 ## 13.1 예상 구조
 
-예시:
+현재 frontend는 다음 책임 구조를 사용한다.
 
 ```text
 src/
 ├─ app/
-│  ├─ router/
-│  └─ providers/
-│
+│  ├─ errors/
+│  ├─ layouts/
+│  └─ router/
+├─ features/
+│  └─ books/
+│     ├─ data/
+│     ├─ hooks/
+│     └─ model/
 ├─ pages/
 │  ├─ home/
-│  ├─ session/
-│  └─ history/
-│
-├─ features/
-│  ├─ reading-session/
-│  ├─ structure-training/
-│  ├─ summary-training/
-│  ├─ speaking-training/
-│  └─ feedback/
-│
-├─ components/
-│  └─ shared/
-│
-├─ layouts/
-│
-├─ hooks/
-│
-├─ lib/
-│
-├─ types/
-│
-├─ styles/
-│
-└─ assets/
+│  └─ books/
+└─ shared/
+   ├─ api/
+   └─ styles/
 ```
 
-이 구조를 무조건 강제하지 않는다.
-
-현재 프로젝트 규모에 맞게 단순하게 시작하되, 기능이 늘어날수록 feature 단위로 분리할 수 있어야 한다.
+구현 세부사항과 파일 배치 기준은 `frontend/ARCHITECTURE.md`를 우선한다. 현재 규모에 맞게 단순하게 유지하되 둘 이상의 화면에서 공유되는 domain 로직만 feature로 분리한다.
 
 ---
 
@@ -712,11 +702,19 @@ ReadLogic은 화려한 AI 서비스보다 **집중할 수 있는 지적 생산�
 
 # 17. 백엔드 방향
 
-초기 백엔드는 향후 다음 기능을 담당한다.
+현재 Spring Boot 백엔드는 다음 기능을 담당한다.
 
 - 책 생성 및 조회
-- 책 페이지별 이미지 저장
-- 페이지별 OCR/Vision 처리 및 텍스트 저장
+- 책과 페이지의 일괄 수정
+- MinIO 기반 페이지 원본 이미지 저장
+- PostgreSQL/Flyway 기반 metadata와 OCR 상태 저장
+- 비동기 OCR 작업 선점, retry와 stale job 복구
+- 책 기본 OCR 언어와 페이지별 override
+- OCR text, confidence와 versioned JSONB document 저장
+- revision 기반 stale OCR 결과 폐기
+
+향후 다음 학습 기능도 같은 공개 API 경계에서 확장할 수 있다.
+
 - 세션 생성
 - 음성 파일 처리
 - STT
@@ -725,17 +723,29 @@ ReadLogic은 화려한 AI 서비스보다 **집중할 수 있는 지적 생산�
 - 세션 저장
 - 기록 조회
 
-프론트엔드와 백엔드 책임을 명확히 분리한다.
+프론트엔드는 Spring Boot 공개 API만 호출한다. Python OCR 서비스는 무상태 내부 추론 서비스이며 PostgreSQL과 MinIO를 직접 사용하지 않는다. package, transaction, 상태 전이와 저장소 경계는 `backend/ARCHITECTURE.md`를 우선한다.
 
 ---
 
 # 18. AI / 모델 역할
 
-AI는 크게 세 가지 역할로 나뉜다.
+OCR과 원문 이해 AI를 같은 역할로 취급하지 않는다.
+
+```text
+PaddleOCR
+  이미지 → 문자·좌표·문단 구조
+
+원문 이해 / 평가 모델
+  OCR 원문 + 사용자 답변 → 의미 분석·피드백
+```
+
+현재 구현된 PaddleOCR는 문서 방향·왜곡 보정, text detection, 한국어·영어·일본어·중국어 recognition, reading order와 paragraph grouping만 담당한다. 내용의 정답, 핵심 주장이나 학습 평가를 생성하지 않는다.
+
+향후 의미 기반 AI는 크게 세 가지 역할로 나뉜다.
 
 ## 18.1 원문 이해
 
-책의 각 페이지 이미지에서 추출된 텍스트를 페이지 순서에 맞게 분석한다.
+OCR로 추출·교정된 페이지 원문을 페이지 순서에 맞게 분석한다.
 
 - 핵심 주장
 - 주요 근거
@@ -911,45 +921,57 @@ ReadingSession
 
 # 23. 개발 우선순위
 
-권장 개발 순서:
+현재 완료 상태와 다음 권장 순서:
 
 ```text
-Phase 0
-Frontend Foundation
+Phase 0 — 완료
+Frontend Foundation / Home
 
-Phase 1
-Home
-
-Phase 2
+Phase 1 — 완료
 Book Library / Registration / Page Management
 
-Phase 3
-Page OCR
+Phase 2 — 완료
+Spring Boot / PostgreSQL / MinIO Integration
 
-Phase 4
-New Session / 20분 Reading
+Phase 3 — 완료
+Async Korean Page OCR / Polling / Manual Correction
+
+Phase 4 — 현재 OCR 개선 범위
+Multilingual Recognition / Document Correction / Structured Paragraph OCR
 
 Phase 5
-5분 Structure
+New Session / 20분 Reading
 
 Phase 6
-5분 Summary
+5분 Structure
 
 Phase 7
-3분 Speaking
+5분 Summary
 
 Phase 8
-STT
+3분 Speaking
 
 Phase 9
-AI Feedback
+STT
 
 Phase 10
-Retry
+AI Feedback
 
 Phase 11
+Retry
+
+Phase 12
 History / Growth
 ```
+
+Page OCR의 구현 기준은 다음과 같다.
+
+- 기존 Korean recognition 경로 회귀 방지
+- 명시 언어 우선, `auto`는 선택 기능
+- Paddle document orientation/UVDoc 우선
+- 좌표 기반 reading order와 paragraph grouping
+- PP-StructureV3는 table/복합 layout 요구가 생길 때 별도 검증
+- CPU Docker 환경에서 concurrency, cache, startup과 timeout을 측정
 
 ---
 
@@ -961,26 +983,26 @@ ReadLogic에서는 큰 변경을 하나의 PR에 몰아넣지 않는다.
 
 > 한 PR = 하나의 명확한 기능 또는 기술적 목적
 
-PR은 기능적으로 세분화한다.
+기능 branch는 최신 `develop`에서 만들고 PR base도 `develop`으로 한다. Codex가 만드는 branch는 기본적으로 `codex/` prefix를 사용한다.
+
+```text
+develop
+  └─ codex/feat/<기능명>
+       └─ PR → develop
+```
+
+PR은 기능적으로 세분화한다. 하나의 목적 안에서 여러 계층이 함께 바뀌어야 할 때는 PR 하나를 유지하되 검토 가능한 최소 목적의 commit으로 나눈다.
 
 ---
 
 ## 좋은 예
 
 ```text
-chore/frontend-foundation
+codex/feat/home-hero
 
-feat/home-header
+codex/feat/book-api
 
-feat/home-hero
-
-feat/home-training-flow
-
-feat/session-start
-
-feat/reading-timer
-
-feat/structure-form
+codex/feat/ocr-improvement
 ```
 
 ---
@@ -1035,6 +1057,9 @@ PR: Home Hero 구현
 - 다른 목적의 변경을 섞지 않음
 - 불필요한 refactoring 없음
 - diff가 과도하게 크지 않음
+- base branch가 `develop`인지 확인
+- 변경된 API, schema, env와 구조가 architecture/README 문서와 일치
+- 실행하지 못한 Docker/model/외부 환경 검증은 성공한 것처럼 쓰지 않고 미확인으로 표시
 
 PR이 다른 PR에 의존한다면 dependency를 명확하게 표시한다.
 
@@ -1042,18 +1067,36 @@ PR이 다른 PR에 의존한다면 dependency를 명확하게 표시한다.
 
 # 26. Commit 규칙
 
-의미 있는 commit 메시지를 사용한다.
+기능 구현 commit 제목은 다음 형식을 사용한다.
+
+```text
+[feat] 한글 작업명
+```
+
+commit 본문에는 최소한 다음 세 항목을 설명한다.
+
+```text
+변경:
+- 무엇을 바꿨는가
+
+이유:
+- 왜 필요한가
+
+검증:
+- 어떤 test/build를 실행했는가
+- 실행하지 못한 항목은 무엇인가
+```
+
+각 commit은 가능한 한 하나의 목적만 가진다. code, test와 그 기능에 직접 필요한 migration은 같은 commit에 포함할 수 있다.
 
 좋은 예:
 
 ```text
-feat: add home hero section
+[feat] OCR 한국어 품질 기준선과 회귀 검증 추가
 
-feat: add training flow step component
+[feat] OCR 읽기 순서와 문단 재구성 추가
 
-style: improve mobile hero layout
-
-fix: prevent training timer reset
+[feat] 프로젝트 구조와 OCR MVP 명세 문서화
 ```
 
 피해야 할 예:
@@ -1167,17 +1210,32 @@ ReadLogic의 성공 기준은 사용자가 단순히 많은 책을 읽는 것이
 
 # 31. 현재 상태 기준
 
-현재 개발 단계에서는 다음에 집중한다.
+현재 구현된 범위:
 
-1. 프론트엔드 구조 설계
-2. 디자인 시스템 기반 마련
-3. Home 화면
-4. 새 책 등록과 페이지 이미지 저장
-5. 내 책 목록과 책/페이지 수정
-6. 향후 학습 세션 기능을 연결할 수 있는 구조
+1. React/TypeScript/Vite frontend와 디자인 token
+2. Home, 새 책 등록, 내 책 목록과 책 상세/편집 route
+3. Spring Boot 공개 책 API
+4. PostgreSQL/Flyway 책·페이지·OCR 상태 저장
+5. MinIO 원본 페이지 이미지 저장
+6. 비동기 OCR 작업 선점, retry, stale 복구와 revision 정합성
+7. FastAPI/PaddleOCR CPU 내부 서비스
+8. 한국어·영어·일본어·중국어와 auto recognition routing
+9. 문서 방향·UVDoc 보정, 공통 detection과 polygon crop
+10. 좌표 기반 reading order, paragraph grouping과 structured JSONB 결과
+11. frontend OCR polling, 기본/page 언어 선택, warning 표시와 수동 본문 교정
 
-백엔드 API가 연결되기 전에는 브라우저 IndexedDB를 임시 저장소로 사용한다.
-현재 단계에서 실제 OCR, STT, AI 평가, 서버 DB 등을 한 번에 구현하지 않는다.
+과거 브라우저 IndexedDB 임시 저장 단계는 종료됐다. frontend는 legacy IndexedDB를 정리할 뿐 책 데이터 원본으로 사용하지 않는다.
+
+현재 미구현 범위:
+
+- ReadingSession과 20/5/5/3 학습 흐름
+- STT와 음성 저장
+- 의미 기반 원문 이해와 사용자 답변 평가
+- Retry/History
+- PP-StructureV3, 표/수식/이미지 layout
+- vertical CJK 정식 지원과 OCR overlay 편집
+
+Docker 가능한 배포 후보 환경의 OCR image size, cold/warm startup, first-language latency와 RSS 실측은 미확인이다. 구현 구조 세부사항은 각 서비스 architecture 문서를 기준으로 한다.
 
 ---
 
@@ -1192,6 +1250,18 @@ GPT / Codex / 로컬 LLM은 ReadLogic 관련 작업을 수행할 때 이 문서�
 3. 사용자가 변경을 확정하면 이 문서도 함께 갱신한다.
 
 임의로 핵심 학습 루프나 서비스 목적을 변경하지 않는다.
+
+문서 책임은 다음과 같이 나눈다.
+
+| 문서 | source of truth |
+| --- | --- |
+| `READLOGIC_PROJECT_CONTEXT.md` | 제품 철학, MVP 범위, 개발·Git 원칙과 현재 큰 상태 |
+| `frontend/ARCHITECTURE.md` | React directory, API mapping, polling, UI state와 확장 위치 |
+| `backend/ARCHITECTURE.md` | Spring package, transaction, OCR job, DB/MinIO와 API 경계 |
+| `ocr-service/ARCHITECTURE.md` | Paddle model, correction/routing/paragraph, runtime와 품질 gate |
+| 각 서비스 `README.md` | 실행, 환경변수, API quick start와 검증 명령 |
+
+구현 구조가 바뀌면 해당 service architecture 문서를 함께 갱신한다. 제품 범위나 확정 원칙이 바뀌면 이 canonical 문서도 같은 PR에서 갱신한다. 미래 계획을 현재 구현처럼 기록하지 않는다.
 
 ---
 

@@ -45,14 +45,21 @@ class HttpOcrClientTests {
 	@Test
 	void sendsMultipartImageAndRequestIdAndMapsResponse() {
 		UUID id = UUID.randomUUID();
-		var result = client.recognize(new OcrImage(new byte[]{1, 2, 3}, "image/png", "page.png"), id);
+		var result = client.recognize(
+				new OcrImage(new byte[]{1, 2, 3}, "image/png", "page.png"),
+				id,
+				"ja"
+		);
 
 		assertThat(requestId.get()).isEqualTo(id.toString());
 		assertThat(requestBody.get()).contains("name=\"image\"").contains("filename=\"page.png\"");
+		assertThat(requestBody.get()).contains("name=\"language\"").contains("ja");
 		assertThat(result.text()).isEqualTo("인식한 문장");
 		assertThat(result.confidence()).isEqualByComparingTo("0.9421");
 		assertThat(result.engine()).isEqualTo("paddleocr");
-		assertThat(result.model()).isEqualTo("PP-OCRv5-korean");
+		assertThat(result.model()).isEqualTo("PP-OCRv5_server_rec");
+		assertThat(result.document()).isNotNull();
+		assertThat(result.document()).containsEntry("schemaVersion", 1);
 	}
 
 	@Test
@@ -96,7 +103,7 @@ class HttpOcrClientTests {
 	}
 
 	private void recognize() {
-		client.recognize(new OcrImage(new byte[]{1}, "image/png", "page.png"), UUID.randomUUID());
+		client.recognize(new OcrImage(new byte[]{1}, "image/png", "page.png"), UUID.randomUUID(), "ko");
 	}
 
 	private void handleRequest(HttpExchange exchange) throws IOException {
@@ -104,7 +111,9 @@ class HttpOcrClientTests {
 		requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.ISO_8859_1));
 		respond(exchange, 200, """
 				{"text":"인식한 문장","confidence":0.9421,"engine":"paddleocr",\
-				"model":"PP-OCRv5-korean","processingTimeMs":123}
+				"model":"PP-OCRv5_server_rec","processingTimeMs":123,\
+				"document":{"schemaVersion":1,"requestedLanguage":"ja",\
+				"detectedLanguage":"ja","coordinateSpace":"corrected_image","paragraphs":[]}}
 				""");
 	}
 

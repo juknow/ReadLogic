@@ -2,6 +2,8 @@
 
 ReadLogic의 책·페이지 데이터와 OCR 작업 상태를 관리하는 Spring Boot API입니다. PostgreSQL에는 책 메타데이터와 OCR 텍스트를, MinIO에는 원본 페이지 이미지를 저장합니다. 페이지 인식은 내부 Python OCR 서비스에 위임하지만 작업 선점, 재시도와 결과 정합성은 이 백엔드가 책임집니다.
 
+package 구조, transaction 경계, OCR 상태 전이와 JSONB lifecycle은 [ARCHITECTURE.md](ARCHITECTURE.md)를 참고합니다.
+
 ## 요구 사항
 
 - Java 21
@@ -53,7 +55,7 @@ Flyway가 시작 시 `src/main/resources/db/migration`의 스키마를 자동 �
 | `GET` | `/api/books` | 책 목록 조회 |
 | `GET` | `/api/books/{bookId}` | 책과 페이지 상세 조회 |
 | `PUT` | `/api/books/{bookId}` | 책 정보와 페이지 변경사항 일괄 저장 |
-| `PATCH` | `/api/books/{bookId}` | 제목과 저자 수정 |
+| `PATCH` | `/api/books/{bookId}` | 제목, 저자와 기본 OCR 언어 수정 |
 | `DELETE` | `/api/books/{bookId}` | 책과 관련 이미지 삭제 |
 | `POST` | `/api/books/{bookId}/pages` | 페이지 추가 |
 | `PATCH` | `/api/books/{bookId}/pages/{pageId}` | 페이지 번호 또는 추출 텍스트 수정 |
@@ -66,7 +68,7 @@ Flyway가 시작 시 `src/main/resources/db/migration`의 스키마를 자동 �
 
 ```shell
 curl -X POST http://localhost:8080/api/books \
-  -F 'metadata={"title":"논리적으로 읽기","author":"홍길동","pages":[{"pageNumber":1},{"pageNumber":2}]};type=application/json' \
+  -F 'metadata={"title":"논리적으로 읽기","author":"홍길동","defaultOcrLanguage":"ko","pages":[{"pageNumber":1},{"pageNumber":2}]};type=application/json' \
   -F 'images=@page-1.png;type=image/png' \
   -F 'images=@page-2.png;type=image/png'
 ```
@@ -75,7 +77,7 @@ curl -X POST http://localhost:8080/api/books \
 
 ```shell
 curl -X PUT http://localhost:8080/api/books/{bookId} \
-  -F 'metadata={"title":"논리적으로 읽기","author":"홍길동","pages":[{"id":"기존-페이지-UUID","pageNumber":2,"imageIndex":0},{"id":null,"pageNumber":1,"imageIndex":1}]};type=application/json' \
+  -F 'metadata={"title":"논리적으로 읽기","author":"홍길동","defaultOcrLanguage":"ko","pages":[{"id":"기존-페이지-UUID","pageNumber":2,"imageIndex":0},{"id":null,"pageNumber":1,"imageIndex":1}]};type=application/json' \
   -F 'images=@replacement.png;type=image/png' \
   -F 'images=@new-page.png;type=image/png'
 ```
@@ -100,6 +102,8 @@ curl -X POST http://localhost:8080/api/books/{bookId}/pages \
   "ocrConfidence": null,
   "ocrEngine": null,
   "ocrModel": null,
+  "ocrLanguage": null,
+  "ocrDocument": null,
   "ocrErrorCode": null,
   "ocrErrorMessage": null,
   "ocrRequestedAt": "2026-09-01T00:00:00Z",
@@ -115,6 +119,25 @@ Invoke-RestMethod `
   -Method Post `
   -Uri http://localhost:8080/api/books/{bookId}/pages/{pageId}/ocr
 ```
+
+body를 보내지 않으면 현재 페이지 override를 유지합니다. 특정 언어를 선택하거나 책 기본값으로 되돌릴 수 있습니다.
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -ContentType 'application/json' `
+  -Uri http://localhost:8080/api/books/{bookId}/pages/{pageId}/ocr `
+  -Body '{"language":"ja"}'
+
+# override 제거 후 책 기본 언어 사용
+Invoke-RestMethod `
+  -Method Post `
+  -ContentType 'application/json' `
+  -Uri http://localhost:8080/api/books/{bookId}/pages/{pageId}/ocr `
+  -Body '{"language":null}'
+```
+
+언어는 `ko`, `en`, `ja`, `zh`, `auto`를 지원합니다. 기존 요청처럼 값을 생략하면 새 책의 기본값은 `ko`입니다. OCR 성공 시 `ocrDocument` JSONB에는 schema version, 보정 정보, 감지 언어, warning, paragraph, line, bbox와 confidence가 저장됩니다.
 
 OCR 본문을 직접 교정하면 `textSource`가 `manual`로 바뀌며 빈 문자열도 유효한 수동 결과입니다. 진행 중이던 이전 OCR 결과는 revision 검사에서 폐기됩니다.
 
@@ -155,6 +178,7 @@ Invoke-RestMethod `
 - `OCR_CONNECT_TIMEOUT`, `OCR_READ_TIMEOUT`: OCR 연결 및 추론 응답 제한 시간
 - `OCR_MAX_ATTEMPTS`, `OCR_POLL_INTERVAL`, `OCR_STALE_AFTER`: 재시도와 작업 복구 설정
 - `OCR_CONCURRENCY`, `OCR_BATCH_SIZE`: 동시 요청 수와 한 번에 선점할 최대 작업 수
+- `OCR_PRELOAD_LANGUAGES`, `OCR_STAGE_TIMEOUT_SECONDS`: Python OCR의 recognizer preload와 cooperative deadline
 
 실제 비밀번호가 들어가는 `.env`는 Git에 커밋하지 않습니다.
 

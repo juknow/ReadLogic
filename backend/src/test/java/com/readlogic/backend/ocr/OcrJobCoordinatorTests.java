@@ -5,6 +5,7 @@ import com.readlogic.backend.book.domain.Book;
 import com.readlogic.backend.book.domain.BookPage;
 import com.readlogic.backend.book.domain.BookRepository;
 import com.readlogic.backend.book.domain.OcrStatus;
+import com.readlogic.backend.book.domain.OcrLanguage;
 import com.readlogic.backend.book.domain.TextSource;
 import com.readlogic.backend.ocr.application.OcrJob;
 import com.readlogic.backend.ocr.application.OcrJobCoordinator;
@@ -19,6 +20,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,6 +71,38 @@ class OcrJobCoordinatorTests {
 		assertThat(completed.getExtractedText()).isEqualTo("인식 결과");
 		assertThat(completed.getOcrConfidence()).isEqualByComparingTo("0.9123");
 		assertThat(completed.getTextSource()).isEqualTo(TextSource.OCR);
+	}
+
+	@Test
+	void snapshotsEffectiveLanguageAndStoresStructuredDocument() {
+		Book book = new Book("일본어 OCR 책", "저자", OcrLanguage.JA);
+		BookPage page = new BookPage(UUID.randomUUID(), 1, "page.png", "image/png", "object-key");
+		book.addPage(page);
+		bookRepository.saveAndFlush(book);
+		Instant now = Instant.now().plusSeconds(1);
+
+		OcrJob defaultLanguageJob = coordinator.claim(1, now).getFirst();
+		assertThat(defaultLanguageJob.language()).isEqualTo("ja");
+
+		Map<String, Object> document = Map.of(
+				"schemaVersion", 1,
+				"requestedLanguage", "ja",
+				"paragraphs", List.of()
+		);
+		boolean stored = coordinator.complete(
+				defaultLanguageJob,
+				new OcrResult("認識結果", new BigDecimal("0.9000"), "paddleocr", "PP-OCRv5_server_rec", document),
+				now.plusSeconds(1)
+		);
+
+		BookPage completed = reload(page);
+		assertThat(stored).isTrue();
+		assertThat(completed.getOcrDocument()).isEqualTo(document);
+
+		bookService.requestPageOcr(book.getId(), page.getId(), OcrLanguage.EN);
+		OcrJob overrideJob = coordinator.claim(1, now.plusSeconds(2)).getFirst();
+		assertThat(overrideJob.language()).isEqualTo("en");
+		assertThat(reload(page).getOcrDocument()).isNull();
 	}
 
 	@Test

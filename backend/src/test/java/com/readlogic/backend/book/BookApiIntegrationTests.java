@@ -62,6 +62,7 @@ class BookApiIntegrationTests {
 				.andExpect(header().exists("Location"))
 				.andExpect(jsonPath("$.title").value("테스트 책"))
 				.andExpect(jsonPath("$.author").value("테스트 저자"))
+				.andExpect(jsonPath("$.defaultOcrLanguage").value("ko"))
 				.andExpect(jsonPath("$.pages[0].pageNumber").value(1))
 				.andExpect(jsonPath("$.pages[0].ocrStatus").value("pending"))
 				.andExpect(jsonPath("$.pages[1].pageNumber").value(2));
@@ -73,7 +74,8 @@ class BookApiIntegrationTests {
 				.andExpect(jsonPath("$[0].pageCount").value(2))
 				.andExpect(jsonPath("$[0].firstPageNumber").value(1))
 				.andExpect(jsonPath("$[0].lastPageNumber").value(2))
-				.andExpect(jsonPath("$[0].coverPage.pageNumber").value(1));
+				.andExpect(jsonPath("$[0].coverPage.pageNumber").value(1))
+				.andExpect(jsonPath("$[0].coverPage.ocrDocument").isEmpty());
 
 		mockMvc.perform(get("/api/books/{bookId}", savedBook.getId()))
 				.andExpect(status().isOk())
@@ -272,6 +274,44 @@ class BookApiIntegrationTests {
 		mockMvc.perform(MockMvcRequestBuilders.post(
 						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), UUID.randomUUID()))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void updatesBookLanguageAndSupportsPageOverrides() throws Exception {
+		when(imageStorage.store(any(), any(), eq("image/png"), anyLong(), any()))
+				.thenReturn("object-1", "object-2");
+		mockMvc.perform(createBookRequest()).andExpect(status().isCreated());
+		Book book = bookRepository.findAllByOrderByCreatedAtDesc().getFirst();
+		BookPage page = book.getPages().getFirst();
+
+		mockMvc.perform(patch("/api/books/{bookId}", book.getId())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{"title":"일본어 책","author":"저자","defaultOcrLanguage":"ja"}
+							"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.defaultOcrLanguage").value("ja"));
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), page.getId())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"language\":\"en\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.ocrLanguage").value("en"));
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), page.getId())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"language\":null}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.ocrLanguage").isEmpty());
+
+		mockMvc.perform(MockMvcRequestBuilders.post(
+						"/api/books/{bookId}/pages/{pageId}/ocr", book.getId(), page.getId())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"language\":\"fr\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 	}
 
 	private MockMultipartHttpServletRequestBuilder createBookRequest() {

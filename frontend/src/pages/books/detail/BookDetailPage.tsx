@@ -16,8 +16,11 @@ import {
 import { useObjectUrl } from '@/features/books/hooks/useObjectUrl'
 import {
   createBookPage,
+  getOcrLanguageLabel,
+  OCR_LANGUAGE_OPTIONS,
   type Book,
   type BookPage,
+  type OcrLanguage,
 } from '@/features/books/model/book'
 import {
   ACCEPTED_BOOK_IMAGE_INPUT,
@@ -45,15 +48,17 @@ function getActionError(error: unknown, fallback: string) {
 }
 
 type PageCardProps = {
+  defaultOcrLanguage: OcrLanguage
   isEditing: boolean
   onPageNumberChange: (pageId: string, pageNumber: number) => void
   onReplace: (pageId: string, file: File) => void
-  onRetryOcr: (pageId: string) => Promise<void>
+  onRetryOcr: (pageId: string, language: OcrLanguage | null) => Promise<void>
   onSaveText: (pageId: string, text: string) => Promise<void>
   page: BookPage
 }
 
 function PageCard({
+  defaultOcrLanguage,
   isEditing,
   onPageNumberChange,
   onReplace,
@@ -68,10 +73,17 @@ function PageCard({
   const [isOcrActionPending, setIsOcrActionPending] = useState(false)
   const [ocrActionError, setOcrActionError] = useState('')
   const [ocrActionMessage, setOcrActionMessage] = useState('')
+  const [selectedOcrLanguage, setSelectedOcrLanguage] = useState<OcrLanguage | ''>(
+    page.ocrLanguage ?? '',
+  )
 
   useEffect(() => {
     if (!isTextEditing) setTextDraft(page.extractedText)
   }, [isTextEditing, page.extractedText])
+
+  useEffect(() => {
+    setSelectedOcrLanguage(page.ocrLanguage ?? '')
+  }, [page.ocrLanguage])
 
   function handleReplace(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -99,7 +111,7 @@ function PageCard({
     setOcrActionError('')
     setOcrActionMessage('')
     try {
-      await onRetryOcr(page.id)
+      await onRetryOcr(page.id, selectedOcrLanguage || null)
       setOcrActionMessage('텍스트 재인식을 요청했습니다.')
     } catch (error) {
       setOcrActionError(getActionError(error, '텍스트 재인식을 요청하지 못했습니다.'))
@@ -149,6 +161,44 @@ function PageCard({
         </div>
         {!isEditing && (page.ocrStatus === 'ready' || page.ocrStatus === 'failed') && (
           <section className={styles.ocrPanel} aria-label={`${page.pageNumber}쪽 인식 본문`}>
+            <div className={styles.ocrLanguageControl}>
+              <label>
+                <span>페이지 OCR 언어</span>
+                <select
+                  disabled={isOcrActionPending}
+                  onChange={(event) =>
+                    setSelectedOcrLanguage(event.target.value as OcrLanguage | '')
+                  }
+                  value={selectedOcrLanguage}
+                >
+                  <option value="">
+                    책 기본 설정 사용 ({getOcrLanguageLabel(defaultOcrLanguage)})
+                  </option>
+                  {OCR_LANGUAGE_OPTIONS.map(({ label, value }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={isOcrActionPending}
+                onClick={() => void handleOcrRetry()}
+                type="button"
+              >
+                {isOcrActionPending ? '요청 중…' : '선택 언어로 재인식'}
+              </button>
+            </div>
+            {page.ocrDocument && (
+              <div className={styles.ocrDocumentMeta}>
+                <span>
+                  감지 언어 {getOcrLanguageLabel(page.ocrDocument.detectedLanguage)}
+                </span>
+                {page.ocrDocument.warnings.map((warning) => (
+                  <p key={warning.code}>{warning.message}</p>
+                ))}
+              </div>
+            )}
             {(page.ocrStatus === 'ready' || page.ocrStatus === 'failed') &&
               (isTextEditing ? (
                 <>
@@ -203,13 +253,6 @@ function PageCard({
               <div className={styles.ocrFailure}>
                 <p>{page.ocrErrorMessage || '텍스트 인식에 실패했습니다.'}</p>
                 {page.ocrErrorCode && <code>{page.ocrErrorCode}</code>}
-                <button
-                  disabled={isOcrActionPending}
-                  onClick={() => void handleOcrRetry()}
-                  type="button"
-                >
-                  {isOcrActionPending ? '요청 중…' : '다시 인식'}
-                </button>
               </div>
             )}
             {page.ocrStatus === 'ready' && page.ocrModel && (
@@ -356,6 +399,12 @@ export function BookDetailPage() {
     )
   }
 
+  function updateDefaultOcrLanguage(defaultOcrLanguage: OcrLanguage) {
+    setDraftBook((currentBook) =>
+      currentBook ? { ...currentBook, defaultOcrLanguage } : currentBook,
+    )
+  }
+
   function updatePageNumber(pageId: string, pageNumber: number) {
     setDraftBook((currentBook) =>
       currentBook
@@ -395,6 +444,7 @@ export function BookDetailPage() {
                     ocrEngine: null,
                     ocrErrorCode: null,
                     ocrErrorMessage: null,
+                    ocrDocument: null,
                     ocrModel: null,
                     ocrRequestedAt: timestamp,
                     ocrStatus: 'pending',
@@ -424,8 +474,8 @@ export function BookDetailPage() {
     setDraftBook((currentBook) => replacePage(currentBook) ?? null)
   }
 
-  async function handleRetryOcr(pageId: string) {
-    applyServerPage(await retryPageOcr(bookId, pageId))
+  async function handleRetryOcr(pageId: string, language: OcrLanguage | null) {
+    applyServerPage(await retryPageOcr(bookId, pageId, language))
   }
 
   async function handleSaveText(pageId: string, text: string) {
@@ -543,6 +593,8 @@ export function BookDetailPage() {
             <span aria-hidden="true">·</span>
             {book.pages.length}페이지
             <span aria-hidden="true">·</span>
+            기본 OCR {getOcrLanguageLabel(book.defaultOcrLanguage)}
+            <span aria-hidden="true">·</span>
             {dateFormatter.format(new Date(book.updatedAt))} 수정
           </p>
         </div>
@@ -609,6 +661,21 @@ export function BookDetailPage() {
                   onChange={(event) => updateBookInfo('author', event.target.value)}
                   value={visibleBook.author}
                 />
+              </label>
+              <label>
+                <span>기본 OCR 언어</span>
+                <select
+                  onChange={(event) =>
+                    updateDefaultOcrLanguage(event.target.value as OcrLanguage)
+                  }
+                  value={visibleBook.defaultOcrLanguage}
+                >
+                  {OCR_LANGUAGE_OPTIONS.map(({ label, value }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
           </section>
@@ -695,6 +762,7 @@ export function BookDetailPage() {
         <ol className={styles.pageGrid}>
           {sortedPages.map((page) => (
             <PageCard
+              defaultOcrLanguage={visibleBook.defaultOcrLanguage}
               isEditing={isEditing}
               key={page.id}
               onPageNumberChange={updatePageNumber}

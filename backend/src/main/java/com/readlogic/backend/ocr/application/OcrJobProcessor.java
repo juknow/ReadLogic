@@ -32,7 +32,7 @@ public class OcrJobProcessor {
 		try {
 			PageImageStorage.StoredImage storedImage = imageStorage.load(job.objectKey());
 			OcrImage image = new OcrImage(storedImage.content(), storedImage.contentType(), job.fileName());
-			OcrResult result = ocrClient.recognize(image, requestId);
+			OcrResult result = ocrClient.recognize(image, requestId, job.language());
 			if (!coordinator.complete(job, result, Instant.now())) {
 				log.info("Discarded stale OCR result. pageId={} requestId={}", job.pageId(), requestId);
 			}

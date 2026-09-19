@@ -19,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -41,13 +42,13 @@ public class HttpOcrClient implements OcrClient {
 	}
 
 	@Override
-	public OcrResult recognize(OcrImage image, UUID requestId) {
+	public OcrResult recognize(OcrImage image, UUID requestId, String language) {
 		try {
 			OcrResponse response = restClient.post()
 					.uri("/internal/v1/ocr")
 					.header("X-Ocr-Request-Id", requestId.toString())
 					.contentType(MediaType.MULTIPART_FORM_DATA)
-					.body(toMultipart(image))
+					.body(toMultipart(image, language))
 					.retrieve()
 					.onStatus(status -> status.isError(), (request, clientResponse) -> {
 						throw toException(clientResponse);
@@ -56,7 +57,13 @@ public class HttpOcrClient implements OcrClient {
 			if (response == null || response.text() == null || response.engine() == null || response.model() == null) {
 				throw new OcrClientException(CONTRACT_ERROR, "OCR 서비스 응답 형식이 올바르지 않습니다.", true);
 			}
-			return new OcrResult(response.text(), response.confidence(), response.engine(), response.model());
+			return new OcrResult(
+					response.text(),
+					response.confidence(),
+					response.engine(),
+					response.model(),
+					response.document()
+			);
 		} catch (OcrClientException exception) {
 			throw exception;
 		} catch (RestClientException exception) {
@@ -69,7 +76,7 @@ public class HttpOcrClient implements OcrClient {
 		}
 	}
 
-	private MultiValueMap<String, Object> toMultipart(OcrImage image) {
+	private MultiValueMap<String, Object> toMultipart(OcrImage image, String language) {
 		ByteArrayResource resource = new ByteArrayResource(image.content()) {
 			@Override
 			public String getFilename() {
@@ -80,6 +87,7 @@ public class HttpOcrClient implements OcrClient {
 		headers.setContentType(MediaType.parseMediaType(image.contentType()));
 		MultiValueMap<String, Object> multipart = new LinkedMultiValueMap<>();
 		multipart.add("image", new HttpEntity<>(resource, headers));
+		multipart.add("language", language);
 		return multipart;
 	}
 
@@ -109,7 +117,8 @@ public class HttpOcrClient implements OcrClient {
 			BigDecimal confidence,
 			String engine,
 			String model,
-			long processingTimeMs
+			long processingTimeMs,
+			Map<String, Object> document
 	) {
 	}
 

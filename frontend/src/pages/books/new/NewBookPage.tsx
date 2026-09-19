@@ -11,6 +11,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { appPaths } from '@/app/router/paths'
 import { createBookOnServer } from '@/features/books/data/bookApiRepository'
 import {
+  OCR_LANGUAGE_OPTIONS,
+  type OcrLanguage,
+} from '@/features/books/model/book'
+import {
   ACCEPTED_BOOK_IMAGE_INPUT,
   getBookImageValidationError,
 } from '@/features/books/model/bookImage'
@@ -46,6 +50,7 @@ export function NewBookPage() {
   const navigate = useNavigate()
   const [bookTitle, setBookTitle] = useState('')
   const [author, setAuthor] = useState('')
+  const [defaultOcrLanguage, setDefaultOcrLanguage] = useState<OcrLanguage>('ko')
   const [firstPageNumber, setFirstPageNumber] = useState('')
   const [pages, setPages] = useState<BookPageImage[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -166,6 +171,7 @@ export function NewBookPage() {
     try {
       const book = await createBookOnServer({
         author,
+        defaultOcrLanguage,
         pages: pages.map(({ file, pageNumber }) => ({
           file,
           pageNumber: Number(pageNumber),
@@ -265,6 +271,24 @@ export function NewBookPage() {
                     type="text"
                     value={author}
                   />
+                </label>
+
+                <label className={`${styles.field} ${styles.languageField}`}>
+                  <span>기본 OCR 언어</span>
+                  <select
+                    onChange={(event) => {
+                      setDefaultOcrLanguage(event.target.value as OcrLanguage)
+                      setSaveError('')
+                    }}
+                    value={defaultOcrLanguage}
+                  >
+                    {OCR_LANGUAGE_OPTIONS.map(({ label, value }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <small>책의 모든 페이지에 기본으로 적용하며 페이지별로 바꿀 수 있어요.</small>
                 </label>
               </div>
             </div>

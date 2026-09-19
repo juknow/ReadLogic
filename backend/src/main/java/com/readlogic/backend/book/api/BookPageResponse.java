@@ -7,6 +7,7 @@ import com.readlogic.backend.book.domain.TextSource;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public record BookPageResponse(
@@ -19,6 +20,8 @@ public record BookPageResponse(
 		BigDecimal ocrConfidence,
 		String ocrEngine,
 		String ocrModel,
+		String ocrLanguage,
+		Map<String, Object> ocrDocument,
 		String ocrErrorCode,
 		String ocrErrorMessage,
 		Instant ocrRequestedAt,
@@ -29,6 +32,14 @@ public record BookPageResponse(
 		Instant updatedAt
 ) {
 	static BookPageResponse from(BookPage page) {
+		return from(page, true);
+	}
+
+	static BookPageResponse summaryFrom(BookPage page) {
+		return from(page, false);
+	}
+
+	private static BookPageResponse from(BookPage page, boolean includeDocument) {
 		return new BookPageResponse(
 				page.getId(),
 				page.getPageNumber(),
@@ -39,6 +50,8 @@ public record BookPageResponse(
 				page.getOcrConfidence(),
 				page.getOcrEngine(),
 				page.getOcrModel(),
+				page.getOcrLanguage() == null ? null : page.getOcrLanguage().apiValue(),
+				includeDocument ? page.getOcrDocument() : null,
 				page.getOcrLastErrorCode(),
 				page.getOcrLastErrorMessage(),
 				page.getOcrRequestedAt(),

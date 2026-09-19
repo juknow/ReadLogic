@@ -3,6 +3,7 @@ package com.readlogic.backend.book.application;
 import com.readlogic.backend.book.domain.Book;
 import com.readlogic.backend.book.domain.BookPage;
 import com.readlogic.backend.book.domain.BookRepository;
+import com.readlogic.backend.book.domain.OcrLanguage;
 import com.readlogic.backend.common.error.DuplicateResourceException;
 import com.readlogic.backend.common.error.InvalidRequestException;
 import com.readlogic.backend.common.error.ResourceNotFoundException;
@@ -46,7 +47,11 @@ public class BookApplicationService {
 		}
 		ensureUniquePageNumbers(command.pages().stream().map(CreatePageCommand::pageNumber).toList());
 
-		Book book = new Book(command.title().trim(), normalizeAuthor(command.author()));
+		Book book = new Book(
+				command.title().trim(),
+				normalizeAuthor(command.author()),
+				command.defaultOcrLanguage()
+		);
 		for (int index = 0; index < command.pages().size(); index++) {
 			CreatePageCommand pageCommand = command.pages().get(index);
 			PageImageUpload image = images.get(index);
@@ -88,8 +93,17 @@ public class BookApplicationService {
 
 	@Transactional
 	public Book updateBook(UUID bookId, String title, String author) {
+		return updateBook(bookId, title, author, null);
+	}
+
+	@Transactional
+	public Book updateBook(UUID bookId, String title, String author, OcrLanguage defaultOcrLanguage) {
 		Book book = getBookWithPages(bookId);
-		book.updateMetadata(title.trim(), normalizeAuthor(author));
+		book.updateMetadata(
+				title.trim(),
+				normalizeAuthor(author),
+				defaultOcrLanguage == null ? book.getDefaultOcrLanguage() : defaultOcrLanguage
+		);
 		return bookRepository.saveAndFlush(book);
 	}
 
@@ -178,6 +192,16 @@ public class BookApplicationService {
 		Book book = getBookWithPages(bookId);
 		BookPage page = findPage(book, pageId);
 		page.requestOcr();
+		book.touch();
+		bookRepository.saveAndFlush(book);
+		return page;
+	}
+
+	@Transactional
+	public BookPage requestPageOcr(UUID bookId, UUID pageId, OcrLanguage language) {
+		Book book = getBookWithPages(bookId);
+		BookPage page = findPage(book, pageId);
+		page.requestOcr(language);
 		book.touch();
 		bookRepository.saveAndFlush(book);
 		return page;
@@ -334,7 +358,13 @@ public class BookApplicationService {
 			Map<UUID, StoredUpload> storedUploads
 	) {
 		List<String> replacedObjectKeys = new ArrayList<>();
-		book.updateMetadata(command.title().trim(), normalizeAuthor(command.author()));
+		book.updateMetadata(
+				command.title().trim(),
+				normalizeAuthor(command.author()),
+				command.defaultOcrLanguage() == null
+						? book.getDefaultOcrLanguage()
+						: command.defaultOcrLanguage()
+		);
 		for (PreparedPage page : pages) {
 			StoredUpload storedUpload = storedUploads.get(page.pageId());
 			if (page.existingPage() == null) {
@@ -393,7 +423,15 @@ public class BookApplicationService {
 		}
 	}
 
-	public record CreateBookCommand(String title, String author, List<CreatePageCommand> pages) {
+	public record CreateBookCommand(
+			String title,
+			String author,
+			OcrLanguage defaultOcrLanguage,
+			List<CreatePageCommand> pages
+	) {
+		public CreateBookCommand(String title, String author, List<CreatePageCommand> pages) {
+			this(title, author, OcrLanguage.KO, pages);
+		}
 	}
 
 	public record CreatePageCommand(int pageNumber) {
@@ -402,7 +440,15 @@ public class BookApplicationService {
 	public record PageImageUpload(String fileName, String contentType, byte[] content) {
 	}
 
-	public record ReplaceBookCommand(String title, String author, List<ReplacePageCommand> pages) {
+	public record ReplaceBookCommand(
+			String title,
+			String author,
+			OcrLanguage defaultOcrLanguage,
+			List<ReplacePageCommand> pages
+	) {
+		public ReplaceBookCommand(String title, String author, List<ReplacePageCommand> pages) {
+			this(title, author, null, pages);
+		}
 	}
 
 	public record ReplacePageCommand(UUID id, int pageNumber, Integer imageIndex) {
